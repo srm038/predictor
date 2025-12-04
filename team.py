@@ -195,41 +195,41 @@ class Team:
         self.oeff = self.bo - 300 * self.mo**2
         self.deff = -self.bd - 360 * self.md**2
 
-        self.mnd = []
-        self.mxd = []
-        self.mno = []
-        self.mxo = []
+        mnd = []
+        mxd = []
+        mno = []
+        mxo = []
 
         for i in range(len(temp_pfh[0])):
             e = temp_pfh[0][i] - (self.mo * temp_pfh[1][i] + self.bo)
             if e < 0:
-                self.mno.append(e)
+                mno.append(e)
             elif e > 0:
-                self.mxo.append(e)
+                mxo.append(e)
 
         for i in range(len(temp_pah[0])):
             e = temp_pah[0][i] - (self.md * temp_pah[1][i] + self.bd)
             if e < 0:
-                self.mnd.append(e)
+                mnd.append(e)
             elif e > 0:
-                self.mxd.append(e)
+                mxd.append(e)
 
-        for i in [self.mnd, self.mxd, self.mno, self.mxo]:
+        for i in [mnd, mxd, mno, mxo]:
             if len(i) == 0:
-                if i == self.mnd:
-                    self.mnd = [self.bd - min(temp_pah[0])]
-                elif i == self.mxd:
-                    self.mxd = [self.bd + max(temp_pah[0])]
-                elif i == self.mno:
-                    self.mno = [self.bo - min(temp_pfh[0])]
-                elif i == self.mxo:
-                    self.mxo = [self.bo + max(temp_pfh[0])]
+                if i == mnd:
+                    mnd = [self.bd - min(temp_pah[0])]
+                elif i == mxd:
+                    mxd = [self.bd + max(temp_pah[0])]
+                elif i == mno:
+                    mno = [self.bo - min(temp_pfh[0])]
+                elif i == mxo:
+                    mxo = [self.bo + max(temp_pfh[0])]
                 print(self.name)
 
-        self.mnd = sign(avg(self.mnd), -1)
-        self.mxd = sign(avg(self.mxd), 1)
-        self.mno = sign(avg(self.mno), -1)
-        self.mxo = sign(avg(self.mxo), 1)
+        self.mnd = sign(avg(mnd), -1)
+        self.mxd = sign(avg(mxd), 1)
+        self.mno = sign(avg(mno), -1)
+        self.mxo = sign(avg(mxo), 1)
 
         if self.mnd < -1:
             self.mnd = -0.9

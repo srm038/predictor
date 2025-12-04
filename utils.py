@@ -1,9 +1,12 @@
+import math
 import re
 import csv
 from typing import Optional
+import warnings
 import numpy as np
 from sklearn.linear_model import LogisticRegression
 import os
+from scipy.optimize import curve_fit, OptimizeWarning
 
 
 filepath = rf"{os.getcwd()}\data"
@@ -138,3 +141,81 @@ def platt_scaling(accuracies: list[tuple[int, int, float]]) -> tuple[float, floa
 
 def gaussian(x, a, z, w):
     return a * np.exp(-(((x - z) / w) ** 2))
+
+
+def getcoeff(
+    x1: float, y1: float, x2: float, y2: float, x3: float, y3: float
+) -> tuple[float, float, float]:
+    """Solves for quadratic coefficients"""
+
+    if y1 > 1:
+        raise ValueError(f"y1 > 1")
+
+    if y3 > 1:
+        raise ValueError(f"y3 > 1")
+    x = [x1, x2, x3]
+    x = np.asarray(x).ravel()
+    y = [y1, y2, y3]
+    y = np.asarray(y).ravel()
+
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=OptimizeWarning)
+        f = curve_fit(gaussian, x, y, [1, x2, (x3 - x1) / 2], gtol=0.1)[0]
+        return f[0], f[1], f[2]
+
+
+def getroots(a, b, c, d, e, f):
+    """Get the roots of the point spread"""
+
+    m = (e * c**2 + b * f**2) / (c**2 + f**2)
+    m = a * d * np.exp(-(((m - b) / c) ** 2) - ((m - e) / f) ** 2)
+    mark = m / 200
+
+    if m == 0:
+        m = a * d
+
+    try:
+        r1 = np.floor(
+            (
+                2 * b * f * f
+                + 2 * c * c * e
+                - c
+                * f
+                * np.sqrt(
+                    8 * b * e
+                    - 4 * e * e
+                    - 4 * c * c * math.log(m / a / d)
+                    - 4 * f * f * math.log(m / a / d)
+                    - 4 * b * b
+                    + 4 * c * c * math.log(200)
+                    + 4 * f * f * math.log(200)
+                )
+            )
+            / (2 * (c * c + f * f))
+        )
+    except ValueError:
+        r1 = np.floor((2 * b * f * f + 2 * c * c * e - c * f) / (2 * (c * c + f * f)))
+
+    try:
+        r2 = np.ceil(
+            (
+                2 * b * f * f
+                + 2 * c * c * e
+                + c
+                * f
+                * np.sqrt(
+                    8 * b * e
+                    - 4 * e * e
+                    - 4 * c * c * math.log(m / a / d)
+                    - 4 * f * f * math.log(m / a / d)
+                    - 4 * b * b
+                    + 4 * c * c * math.log(200)
+                    + 4 * f * f * math.log(200)
+                )
+            )
+            / (2 * (c * c + f * f))
+        )
+    except ValueError:
+        r2 = np.ceil((2 * b * f * f + 2 * c * c * e + c * f) / (2 * (c * c + f * f)))
+
+    return max(0, r1), max(3, r2)

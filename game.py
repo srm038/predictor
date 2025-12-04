@@ -1,12 +1,11 @@
 from datetime import datetime
 from typing import TYPE_CHECKING, Literal, Optional
 import warnings
-from scipy.optimize import curve_fit, OptimizeWarning
 import math
 from math import exp, floor, ceil, sqrt
 import numpy as np
 
-from utils import avg, gaussian, platt_scale, filepath
+from utils import avg, gaussian, getroots, platt_scale, filepath, getcoeff
 
 if TYPE_CHECKING:
     from sport import Sport
@@ -45,6 +44,11 @@ class Game:
         self.r2: int | Literal[""]
         self.badness: float | Literal[""]
 
+        self.pahaa: float
+        self.pfhaa: float
+        self.paoaa: float
+        self.pfoaa: float
+
         self.p_flag = 0
 
         if self.p1 == 0 and self.p2 == 0:
@@ -68,9 +72,7 @@ class Game:
             if (
                 self.sport.s == "fcs"
                 and self.t1
-                in open(
-                    filepath + "\\NCAA FBS\\" + self.sport.year + "\\teams.csv"
-                ).read()
+                in open(f"{filepath}\\fbs\\{self.sport.year}\\teams.csv").read()
             ):
                 self.w1 = 1
                 self.w2 = 0
@@ -88,9 +90,7 @@ class Game:
             if (
                 self.sport.s == "fcs"
                 and self.t2
-                in open(
-                    filepath + "\\NCAA FBS\\" + self.sport.year + "\\teams.csv"
-                ).read()
+                in open(f"{filepath}\\fbs\\{self.sport.year}\\teams.csv").read()
             ):
                 self.w1 = 0
                 self.w2 = 1
@@ -115,191 +115,91 @@ class Game:
             return
 
         try:
-            tpfh1 = self.sport.teams[i1].tpfh
-            tpah1 = self.sport.teams[i1].tpah
-            n1 = self.sport.teams[i1].n
-            tpfh2 = self.sport.teams[i2].tpfh
-            tpah2 = self.sport.teams[i2].tpah
-            n2 = self.sport.teams[i2].n
+            if (t1 := self.sport.teams[i1]) and (t2 := self.sport.teams[i2]):
+                tpfh1 = t1.tpfh
+                tpah1 = t1.tpah
+                n1 = t1.n
+                tpfh2 = t2.tpfh
+                tpah2 = t2.tpah
+                n2 = t2.n
 
-            mo1, bo1, md1, bd1, mnd1, mxd1, mno1, mxo1 = (
-                self.sport.teams[i1].mo,
-                self.sport.teams[i1].bo,
-                self.sport.teams[i1].md,
-                self.sport.teams[i1].bd,
-                self.sport.teams[i1].mnd,
-                self.sport.teams[i1].mxd,
-                self.sport.teams[i1].mno,
-                self.sport.teams[i1].mxo,
-            )
-            mo2, bo2, md2, bd2, mnd2, mxd2, mno2, mxo2 = (
-                self.sport.teams[i2].mo,
-                self.sport.teams[i2].bo,
-                self.sport.teams[i2].md,
-                self.sport.teams[i2].bd,
-                self.sport.teams[i2].mnd,
-                self.sport.teams[i2].mxd,
-                self.sport.teams[i2].mno,
-                self.sport.teams[i2].mxo,
-            )
-        except AttributeError:
-            self.sport.log("Either", self.t1, "or", self.t2, "has incomplete data")
+                mo1, bo1, md1, bd1, mnd1, mxd1, mno1, mxo1 = (
+                    t1.mo,
+                    t1.bo,
+                    t1.md,
+                    t1.bd,
+                    t1.mnd,
+                    t1.mxd,
+                    t1.mno,
+                    t1.mxo,
+                )
+                mo2, bo2, md2, bd2, mnd2, mxd2, mno2, mxo2 = (
+                    t2.mo,
+                    t2.bo,
+                    t2.md,
+                    t2.bd,
+                    t2.mnd,
+                    t2.mxd,
+                    t2.mno,
+                    t2.mxo,
+                )
+
+                if not self.p_flag:
+                    self.pfhaa = tpfh1 / n1
+                    self.pahaa = tpah1 / n1
+                    self.pfoaa = tpfh2 / n2
+                    self.paoaa = tpah2 / n2
+                else:
+                    self.pfhaa = (tpfh1 - (self.p1 or 0)) / (n1 - 1)
+                    self.pahaa = (tpah1 - (self.p2 or 0)) / (n1 - 1)
+                    self.pfoaa = (tpfh2 - (self.p2 or 0)) / (n2 - 1)
+                    self.paoaa = (tpah2 - (self.p1 or 0)) / (n2 - 1)
+
+                (a, b, c) = getcoeff(
+                    self.paoaa * (mo1 * self.paoaa + bo1 + mno1),
+                    abs(mno1),
+                    self.paoaa * (mo1 * self.paoaa + bo1),
+                    1,
+                    self.paoaa * (mo1 * self.paoaa + bo1 + mxo1),
+                    abs(mxo1),
+                )
+
+                (d, e, f) = getcoeff(
+                    self.pfhaa * (md2 * self.pfhaa + bd2 + mnd2),
+                    abs(mnd2),
+                    self.pfhaa * (md2 * self.pfhaa + bd2),
+                    1,
+                    self.pfhaa * (md2 * self.pfhaa + bd2 + mxd2),
+                    abs(mxd2),
+                )
+
+                (self.phl, self.phh) = getroots(a, b, c, d, e, f)
+
+                (a, b, c) = getcoeff(
+                    self.pahaa * (mo2 * self.pahaa + bo2 + mno2),
+                    abs(mno2),
+                    self.pahaa * (mo2 * self.pahaa + bo2),
+                    1,
+                    self.pahaa * (mo2 * self.pahaa + bo2 + mxo2),
+                    abs(mxo2),
+                )
+
+                (d, e, f) = getcoeff(
+                    self.pfoaa * (md1 * self.pfoaa + bd1 + mnd1),
+                    abs(mnd1),
+                    self.pfoaa * (md1 * self.pfoaa + bd1),
+                    1,
+                    self.pfoaa * (md1 * self.pfoaa + bd1 + mxd1),
+                    abs(mxd1),
+                )
+
+                (self.pal, self.pah) = getroots(a, b, c, d, e, f)
+
+        except:
+            self.sport.log(f"Could not get roots for {self.t1} vs {self.t2}")
             self.w1 = 0.5
             self.w2 = 0.5
             return
-
-        if not self.p_flag:
-            self.pfhaa = tpfh1 / n1
-            self.pahaa = tpah1 / n1
-            self.pfoaa = tpfh2 / n2
-            self.paoaa = tpah2 / n2
-        else:
-            self.pfhaa = (tpfh1 - self.p1) / (n1 - 1)
-            self.pahaa = (tpah1 - self.p2) / (n1 - 1)
-            self.pfoaa = (tpfh2 - self.p2) / (n2 - 1)
-            self.paoaa = (tpah2 - self.p1) / (n2 - 1)
-
-        def getcoeff(x1, y1, x2, y2, x3, y3):
-            """Solves for quadratic coefficients"""
-
-            if y1 > 1:
-                print(self.t1, self.t2)
-                print(mno1, mno2, mnd1, mnd2)
-                return
-
-            if y3 > 1:
-                print(self.t1, self.t2)
-                print(mno1, mno2, mnd1, mnd2)
-                return
-
-            x = [x1, x2, x3]
-            x = np.asarray(x).ravel()
-            y = [y1, y2, y3]
-            y = np.asarray(y).ravel()
-
-            try:
-                with warnings.catch_warnings():
-                    warnings.filterwarnings("ignore", category=OptimizeWarning)
-                    f = curve_fit(gaussian, x, y, [1, x2, (x3 - x1) / 2], gtol=0.1)[0]
-            except RuntimeError:
-                self.sport.log("Curve fit failed for Game " + str(self.id))
-                return 1, x2, (x3 - x1) / 2
-            except TypeError:
-                self.sport.log("Curve fit Type Error for Game " + str(self.id))
-                self.sport.log(x)
-                self.sport.log(y)
-                return
-            except OptimizeWarning:
-                self.sport.log("Curve fit optimize warning for Game " + str(self.id))
-                for i in [x1, y1, x2, y2, x3, y3]:
-                    self.sport.log(i)
-                return
-            return f[0], f[1], f[2]
-
-        def getroots(a, b, c, d, e, f):
-            """Get the roots of the point spread"""
-
-            m = (e * c**2 + b * f**2) / (c**2 + f**2)
-            m = a * d * exp(-(((m - b) / c) ** 2) - ((m - e) / f) ** 2)
-            mark = m / 200
-
-            if m == 0:
-                m = a * d
-                self.sport.log("GAMEID: " + str(self.id), a, b, c, d, e, f)
-                self.sport.log(m)
-            # if m is None: log('m is None')
-
-            try:
-                r1 = floor(
-                    (
-                        2 * b * f * f
-                        + 2 * c * c * e
-                        - c
-                        * f
-                        * sqrt(
-                            8 * b * e
-                            - 4 * e * e
-                            - 4 * c * c * math.log(m / a / d)
-                            - 4 * f * f * math.log(m / a / d)
-                            - 4 * b * b
-                            + 4 * c * c * math.log(200)
-                            + 4 * f * f * math.log(200)
-                        )
-                    )
-                    / (2 * (c * c + f * f))
-                )
-            except ValueError:
-                r1 = floor(
-                    (2 * b * f * f + 2 * c * c * e - c * f) / (2 * (c * c + f * f))
-                )
-                self.sport.log("r1: " + str(r1))
-                # r1 =
-            try:
-                r2 = ceil(
-                    (
-                        2 * b * f * f
-                        + 2 * c * c * e
-                        + c
-                        * f
-                        * sqrt(
-                            8 * b * e
-                            - 4 * e * e
-                            - 4 * c * c * math.log(m / a / d)
-                            - 4 * f * f * math.log(m / a / d)
-                            - 4 * b * b
-                            + 4 * c * c * math.log(200)
-                            + 4 * f * f * math.log(200)
-                        )
-                    )
-                    / (2 * (c * c + f * f))
-                )
-            except ValueError:
-                r2 = ceil(
-                    (2 * b * f * f + 2 * c * c * e + c * f) / (2 * (c * c + f * f))
-                )
-                self.sport.log("r2: " + str(r2))
-
-            return max(0, r1), max(3, r2)
-
-        (a, b, c) = getcoeff(
-            self.paoaa * (mo1 * self.paoaa + bo1 + mno1),
-            abs(mno1),
-            self.paoaa * (mo1 * self.paoaa + bo1),
-            1,
-            self.paoaa * (mo1 * self.paoaa + bo1 + mxo1),
-            abs(mxo1),
-        )
-
-        (d, e, f) = getcoeff(
-            self.pfhaa * (md2 * self.pfhaa + bd2 + mnd2),
-            abs(mnd2),
-            self.pfhaa * (md2 * self.pfhaa + bd2),
-            1,
-            self.pfhaa * (md2 * self.pfhaa + bd2 + mxd2),
-            abs(mxd2),
-        )
-
-        (self.phl, self.phh) = getroots(a, b, c, d, e, f)
-
-        (a, b, c) = getcoeff(
-            self.pahaa * (mo2 * self.pahaa + bo2 + mno2),
-            abs(mno2),
-            self.pahaa * (mo2 * self.pahaa + bo2),
-            1,
-            self.pahaa * (mo2 * self.pahaa + bo2 + mxo2),
-            abs(mxo2),
-        )
-
-        (d, e, f) = getcoeff(
-            self.pfoaa * (md1 * self.pfoaa + bd1 + mnd1),
-            abs(mnd1),
-            self.pfoaa * (md1 * self.pfoaa + bd1),
-            1,
-            self.pfoaa * (md1 * self.pfoaa + bd1 + mxd1),
-            abs(mxd1),
-        )
-
-        (self.pal, self.pah) = getroots(a, b, c, d, e, f)
 
         t = []
 
