@@ -52,10 +52,10 @@ class Sport:
         self.playoffraw = rf"{filepath}\{self.s}\{self.year}\playoff.csv"
         self.bayesconv = rf"{filepath}\{self.s}\{self.year}\bayes.csv"
         self.bayesrank = rf"{filepath}\{self.s}\{self.year}\bayesrank.csv"
-        self.persistf = rf"{filepath}\{self.s}\{self.year}.p"
-        self.allranksf = rf"{filepath}\{self.s}\{self.year}all.p"
-        self.allwranksf = rf"{filepath}\{self.s}\{self.year}all2.p"
-        self.powf = rf"{filepath}\{self.s}\{self.year}pow50.p"
+        self.persistf = rf"{filepath}\{self.s}\{self.year}\persist.p"
+        self.allranksf = rf"{filepath}\{self.s}\{self.year}\all.p"
+        self.allwranksf = rf"{filepath}\{self.s}\{self.year}\all2.p"
+        self.powf = rf"{filepath}\{self.s}\{self.year}\pow50.p"
         self.comprehensive = rf"{filepath}\{self.s}\{self.year}\allteams.csv"
         self.weekly = rf"{filepath}\{self.s}\{self.year}\weekly.csv"
         self.logfile = rf"{filepath}\{self.s}\{self.year}\log.txt"
@@ -322,7 +322,7 @@ class Sport:
         except (AttributeError, UnboundLocalError):
             print("Couldnt find a rank.")
 
-        log("Ranking teams by FULL to date.....")
+        self.log("Ranking teams by FULL to date.....")
 
         with open(self.persistf, "wb") as p:
             pickle.dump((self.teams, self.games), p)
@@ -395,7 +395,7 @@ class Sport:
             for i in self.teams:
                 wr = self.allwranks[self.teams.index(i)][w + 1]
                 if wr is None:
-                    log("Ranking error")
+                    self.log("Ranking error")
                     return
                 rank.append(
                     [i.codename, (11 * wr + 1 * i.sorank + 3 * i.swrank) / 15, wr]
@@ -439,7 +439,7 @@ class Sport:
             except IndexError:
                 pass
 
-        log("{:} games total".format(len(self.games)))
+        self.log("{:} games total".format(len(self.games)))
 
         for g in self.games:
             t1 = self.teams[g.t1]
@@ -490,7 +490,7 @@ class Sport:
         pickle.dump(self.allwranks, open(self.allwranksf, "wb"))
         pickle.dump((self.teams, self.games), open(self.persistf, "wb"))
 
-        log("Done")
+        self.log("Done")
 
     def conf(self, c="CUSA"):
 
@@ -625,7 +625,7 @@ class Sport:
     def showweek(self, w):
         """ """
 
-        log("Showing games for Week " + str(w))
+        self.log("Showing games for Week " + str(w))
 
         for g in self.games:
             if g.week == w and w > self.currentweek:
@@ -688,7 +688,7 @@ class Sport:
     def showall(self):
         """ """
 
-        log("Showing team rankings and stats")
+        self.log("Showing team rankings and stats")
 
         for t in self.teams:
             try:
@@ -716,7 +716,7 @@ class Sport:
 
     def printall(self):
 
-        log("Saving team and comprehensive files")
+        self.log("Saving team and comprehensive files")
 
         open(self.comprehensive, "w").close()
 
@@ -961,7 +961,7 @@ class Sport:
                                 )
                             )
                         except:
-                            log("Error saving ranks")
+                            self.log("Error saving ranks")
                             pass
 
     def nextyear(self):
@@ -1076,7 +1076,7 @@ class Sport:
 
         self.currentweek = currentweek
         allGames: list[Game] = [g for g in self.games]
-        teams = [Team(t.codename, t.name) for t in self.teams]
+        teams = [Team(t.codename, t.name, sport=self) for t in self.teams]
         row = 0
 
         for w in range(begin, currentweek):
@@ -1116,7 +1116,7 @@ class Sport:
     def calculatePlatt(self):
         if not self.rawAccuracy:
             return
-        log("Scaling...")
+        self.log("Scaling...")
         self.platt = platt_scaling(self.rawAccuracy)
         print(f"A: {self.platt[0]:0.4f}, B: {self.platt[1]:0.4f}")
         for g in self.games:
@@ -1221,7 +1221,7 @@ class Sport:
                         poff[n + 1].append(poff[n][i])
                     else:
                         poff[n + 1].append(poff[n][i + 1])
-            log(poff[-1])
+            self.log(poff[-1])
 
         for i in range(len(poff[0])):
             p[i][0] = poff[0][i]
