@@ -1,0 +1,11 @@
+numpy
+scipy
+matplotlib
+requests
+statsmodels
+beautifulsoup4
+DateTime
+python-dateutil
+networkx
+scikit-learn
+dotenv
