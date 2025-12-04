@@ -65,11 +65,7 @@ class Sport:
         processRawData(self.dataraw)
 
     def log(self, *text):
-        """Write log event to this sport's logfile (wrapper around utils.log).
-
-        Using a class method avoids assigning a local lambda to the instance
-        which would make the object unpicklable.
-        """
+        """Write log event to this sport's logfile (wrapper around utils.log)."""
         log(self.logfile, *text)
 
     def rankteams(self):
