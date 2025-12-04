@@ -32,6 +32,8 @@ class Team:
         self.rank: int
         self.wrank: int
         self.skins: int
+        self.sorank: int
+        self.swrank: int
 
         for key, value in kwargs.items():
             setattr(self, key, value)
@@ -342,7 +344,7 @@ class Team:
 
         self.momentum = self.loess[-1]
 
-    def wl(self, flag):
+    def wl(self, flag: Literal[0, 1, 2] = 0) -> str | float:
         """Return number of wins and losses"""
 
         win = 0
@@ -572,7 +574,7 @@ class Team:
         else:
             return "{:}-{:}".format(self.projw, self.projl)
 
-    def sos(self, t=0):
+    def sos(self, t: Literal[0, "soo", "sow"] = 0):
 
         r, soo0, soo1, sow0, sow1 = [], [], [], [], []
 

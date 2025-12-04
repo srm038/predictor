@@ -36,12 +36,14 @@ class Game:
         self.p2 = p2
         self.ps = postseason
         self.day = day
-        self.r1 = ""
-        self.r2 = ""
         self.id = id
         self.week = 0
         self.platt = (0.0, 0.0)
         self.sport = sport
+
+        self.r1: int | Literal[""]
+        self.r2: int | Literal[""]
+        self.badness: float | Literal[""]
 
         self.p_flag = 0
 

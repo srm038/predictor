@@ -7,6 +7,7 @@ from operator import itemgetter
 import numpy as np
 import csv
 from datetime import datetime
+from typing import Optional
 
 
 class Sport:
@@ -43,6 +44,7 @@ class Sport:
 
         self.firstFullWeek: int
         self.maxNameLen: int
+        self.fmeas: float
 
         self.dataraw = rf"{filepath}\{self.s}\{self.year}\raw.csv"
         self.teamsraw = rf"{filepath}\{self.s}\{self.year}\teams.csv"
@@ -190,11 +192,8 @@ class Sport:
             b = self.teams[g.t2]
             g.r1 = a.rank if a else ""
             g.r2 = b.rank if b else ""
-            if a and b:
-                try:
-                    g.badness = g.r1 * g.r2 / len(self.teams) ** 2
-                except AttributeError:
-                    g.badness = ""
+            if a and b and g.r1 != "" and g.r2 != "":
+                g.badness = g.r1 * g.r2 / len(self.teams) ** 2
             else:
                 g.badness = ""
 
@@ -207,7 +206,7 @@ class Sport:
 
         open(self.rankingraw, "w").close()
 
-        for t in sorted(self.teams, key=lambda i: i.rank or 129):
+        for t in sorted(self.teams, key=lambda i: i.rank or len(self.teams) + 1):
             with open(self.rankingraw, "a") as f:
                 try:
                     if t.rank:
@@ -226,16 +225,14 @@ class Sport:
                 f.write(",".join(["", str(t), "\n"]))
 
     def rankwvara(self):
-        """ """
-
         print("Ranking teams by WVARA to date.....")
 
         pickle.dump((self.teams, self.games), open(self.persistf, "wb"))
 
         w = self.firstFullWeek or self.findFirstFullWeek()
 
-        self.allwranks = [
-            [None for g in range(1, self.games[-1].week + 2)] for t in self.teams
+        self.allwranks: list[list[Optional[int]]] = [
+            [None for _ in range(1, self.games[-1].week + 2)] for _ in self.teams
         ]
 
         while w < self.currentweek:
@@ -258,8 +255,8 @@ class Sport:
 
             temp = list(sorted(wrank[1], reverse=True))
 
-            for t in range(len(self.teams)):
-                self.allwranks[t][w + 1] = temp.index(self.teams[t].wvara()) + 1
+            for t, team in enumerate(self.teams):
+                self.allwranks[t][w + 1] = temp.index(team.wvara()) + 1
 
             with open(self.persistf, "rb") as p:
                 (self.teams, self.games) = pickle.load(p)
@@ -275,13 +272,13 @@ class Sport:
 
             c = self.currentweek - 1
 
-            for t in self.teams:
+            for t, team in enumerate(self.teams):
                 try:
-                    t.wrank = int(self.allwranks[self.teams.index(t)][-1])
+                    team.wrank = int(self.allwranks[t][-1] or len(self.teams) + 1)
                 except TypeError:
-                    t.wrank = int(self.allwranks[self.teams.index(t)][1:][c])
-            for t in self.teams:
-                t.sos()
+                    team.wrank = int(self.allwranks[t][1:][c] or len(self.teams) + 1)
+            for team in self.teams:
+                team.sos()
 
             with open(self.persistf, "wb") as p:
                 pickle.dump((self.teams, self.games), p)
@@ -314,7 +311,8 @@ class Sport:
     def rankingtodate(self):
 
         try:
-            self.teams[0].wrank
+            if team := self.teams[0]:
+                team.wrank
         except (AttributeError, UnboundLocalError):
             print("Couldnt find a rank.")
 
@@ -331,10 +329,10 @@ class Sport:
             else:
                 break
 
-        self.allranks = [
+        self.allranks: list[list[Optional[int]]] = [
             [None for g in range(1, self.games[-1].week + 2)] for t in self.teams
         ]
-        self.allwranks = [
+        self.allwranks: list[list[Optional[int]]] = [
             [None for g in range(1, self.games[-1].week + 2)] for t in self.teams
         ]
 
@@ -358,11 +356,11 @@ class Sport:
 
             temp = list(sorted(wrank[1], reverse=True))
 
-            for t in range(len(self.teams)):
-                self.allwranks[t][w + 1] = temp.index(self.teams[t].wvara()) + 1
-                self.teams[t].wrank = self.allwranks[t][w + 1]
-            for t in self.teams:
-                t.sos()
+            for t, team in enumerate(self.teams):
+                self.allwranks[t][w + 1] = temp.index(team.wvara()) + 1
+                team.wrank = self.allwranks[t][w + 1] or len(self.teams) + 1
+            for team in self.teams:
+                team.sos()
 
             sorank = [[], []]
 
@@ -388,22 +386,33 @@ class Sport:
 
             rank = []
 
-            for i in self.teams:
-                wr = self.allwranks[self.teams.index(i)][w + 1]
+            for t, team in enumerate(self.teams):
+                wr = self.allwranks[t][w + 1]
                 if wr is None:
-                    self.log("Ranking error")
+                    self.log(f"Ranking error: {team.codename}")
                     return
                 rank.append(
-                    [i.codename, (11 * wr + 1 * i.sorank + 3 * i.swrank) / 15, wr]
+                    [
+                        team.codename,
+                        (11 * wr + 1 * team.sorank + 3 * team.swrank) / 15,
+                        wr,
+                    ]
                 )
 
             temp = sorted(rank, key=itemgetter(1, 2), reverse=False)
 
-            for i in self.teams:
-                wr = self.allwranks[self.teams.index(i)][w + 1]
-                i.rank = (
+            for t, team in enumerate(self.teams):
+                wr = self.allwranks[t][w + 1]
+                if wr is None:
+                    self.log(f"Ranking error: {team.codename}")
+                    return
+                team.rank = (
                     temp.index(
-                        [i.codename, (11 * wr + 1 * i.sorank + 3 * i.swrank) / 15, wr]
+                        [
+                            team.codename,
+                            (11 * wr + 1 * team.sorank + 3 * team.swrank) / 15,
+                            wr,
+                        ]
                     )
                     + 1
                 )
@@ -414,8 +423,8 @@ class Sport:
                 pass
 
             try:
-                for t in range(len(self.teams)):
-                    self.allranks[t][w + 1] = self.teams[t].rank
+                for t, team in enumerate(self.teams):
+                    self.allranks[t][w + 1] = team.rank
             except IndexError:
                 pass
 
@@ -428,22 +437,24 @@ class Sport:
             t.updatemetrics()
         for g in self.games:
             g.w()
+
         self.rankteams()
-        for t in range(len(self.teams)):
+
+        for t, team in enumerate(self.teams):
             try:
-                self.allranks[t].append(self.teams[t].rank)
+                self.allranks[t].append(team.rank)
             except IndexError:
                 pass
 
         self.log("{:} games total".format(len(self.games)))
 
         for g in self.games:
-            t1 = self.teams[g.t1]
-            t2 = self.teams[g.t2]
+            t1 = self.teams.index(g.t1)
+            t2 = self.teams.index(g.t2)
             if t1 is not None:
                 try:
-                    if self.allranks[t1][g.week + 1]:
-                        g.r1 = self.allranks[t1][g.week + 1]
+                    if r := self.allranks[t1][g.week + 1]:
+                        g.r1 = r
                     else:
                         g.r1 = ""
                 except IndexError:
@@ -452,12 +463,12 @@ class Sport:
                 g.r1 = ""
             if t2 is not None:
                 try:
-                    if self.allranks[t2][g.week + 1]:
-                        g.r2 = self.allranks[t2][g.week + 1]
+                    if r := self.allranks[t2][g.week + 1]:
+                        g.r2 = r
                     else:
                         g.r2 = ""
                 except IndexError:
-                    g.r1 = ""
+                    g.r2 = ""
             else:
                 g.r2 = ""
 
@@ -495,22 +506,13 @@ class Sport:
                 print(t.codename, t.cwvara, t.wvara(), sep="\t")
 
     def rankbays(self):
-        """
-        work in progress
-        """
-
         m = []
         open(self.bayesconv, "w").close()
 
         print("Power.....")
-        if u != 1:
-            try:
-                m = pickle.load(open(self.powf, "rb"))
-            except IOError:
-                for t in self.teams:
-                    m.append(list(t.power(50)))
-                pickle.dump(m, open(self.powf, "wb"))
-        else:
+        try:
+            m = pickle.load(open(self.powf, "rb"))
+        except IOError:
             for t in self.teams:
                 m.append(list(t.power(50)))
             pickle.dump(m, open(self.powf, "wb"))
@@ -519,7 +521,8 @@ class Sport:
         rank = []
 
         for i in m:
-            rank.append((str(self.teams[m.index(i)].codename), avg(i)))
+            if t := self.teams[m.index(i)]:
+                rank.append((t.codename, avg(i)))
 
         rank = list(sorted(rank, key=itemgetter(1), reverse=True))
 
@@ -530,10 +533,12 @@ class Sport:
             for r in rank:
                 k += 1
                 for t in rank[k:]:
-                    try:
-                        s += m[self.find(r[0])][self.find(t[0])]
-                    except TypeError:
-                        continue
+                    s += (
+                        m[r0][t0]
+                        if (r0 := self.teams.index(r[0]))
+                        and (t0 := self.teams.index(t[0]))
+                        else 0
+                    )
 
             return s
 
@@ -724,7 +729,7 @@ class Sport:
         div = "\n" + str("-" * 10) + "\n"
 
         for t in self.teams:
-            teamfile = f"{filepath}\\{self.sfile}\\{self.year}\\Teams\\{t.codename}.txt"
+            teamfile = f"{filepath}\\{self.s}\\{self.year}\\Teams\\{t.codename}.txt"
 
             with open(teamfile, "w") as f:
                 f.write("#{:} {:} ({:})".format(t.rank, t.name, t.wl(1)) + "\n")
@@ -779,7 +784,7 @@ class Sport:
                     p1 = g.p1
                     p2 = g.p2
                 if g.t1 == t.codename:  # home is 1
-                    if self.find(g.t2) is None:  # opponent is fcs
+                    if not self.teams[g.t2]:  # opponent is fcs
                         d[c][0] = g.day.strftime("%a %b %d")  # day
                         try:
                             d[c][1] = g.r1  # home rank
@@ -821,10 +826,12 @@ class Sport:
                         else:
                             d[c][2] = "·"  # location
                         if not g.p_flag:  # opponent rank
-                            d[c][3] = teams[find(g.t2)].rank
+                            if t2 := self.teams[g.t2]:
+                                d[c][3] = t2.rank
                         else:
                             d[c][3] = g.r2  # opponent rank
-                        d[c][4] = teams[find(g.t2)].name  # opponent name
+                        if t2 := self.teams[g.t2]:
+                            d[c][4] = t2.name  # opponent name
                         if p1 > p2:
                             d[c][5] = "W"  # win/loss
                         elif p1 < p2:
@@ -844,7 +851,7 @@ class Sport:
                         except AttributeError:
                             d[c][9] = 0
                 else:  # home is 2
-                    if self.find(g.t1) is None:  # opponent is fcs
+                    if not self.teams[g.t1]:  # opponent is fcs
                         d[c][0] = g.day.strftime("%a %b %d")  # day
                         try:
                             d[c][1] = g.r2  # home rank
@@ -886,10 +893,12 @@ class Sport:
                         else:
                             d[c][2] = "·"  # location
                         if not g.p_flag:
-                            d[c][3] = teams[find(g.t1)].rank  # opponent rank
+                            if t1 := self.teams[g.t1]:
+                                d[c][3] = t1.rank  # opponent rank
                         else:
                             d[c][3] = g.r1  # opponent rank
-                        d[c][4] = teams[find(g.t1)].name  # opponent name
+                        if t1 := self.teams[g.t1]:
+                            d[c][4] = t1.name  # opponent name
                         if p1 < p2:
                             d[c][5] = "W"  # win/loss
                         elif p1 > p2:
@@ -934,26 +943,29 @@ class Sport:
             t.hindex()
 
         open(self.rankingraw, "w").close()
-        for i in range(len(self.teams)):
-            for j in range(len(self.teams)):
-                if self.teams[j].rank == i + 1:
+        for i, teamI in enumerate(self.teams):
+            for j, teamJ in enumerate(self.teams):
+                if teamJ.rank == i + 1:
                     with open(self.rankingraw, "a", encoding="utf-8") as f:
                         try:
                             f.write(
                                 ",".join(
-                                    [
-                                        self.teams[j].name,
-                                        self.teams[j].wvara(),
-                                        self.teams[j].cwvara,
-                                        self.teams[j].wl(1),
-                                        self.teams[j].proj(),
-                                        self.teams[j].sos("sow"),
-                                        self.teams[j].sos("soo"),
-                                        self.teams[j].oeff,
-                                        self.teams[j].deff,
-                                        self.teams[j].H,
-                                        self.teams[j].skins,
-                                    ]
+                                    map(
+                                        str,
+                                        [
+                                            teamJ.name,
+                                            teamJ.wvara(),
+                                            teamJ.cwvara,
+                                            teamJ.wl(1) or "",
+                                            teamJ.proj(),
+                                            teamJ.sos("sow") or "",
+                                            teamJ.sos("soo") or "",
+                                            teamJ.oeff,
+                                            (teamJ.deff),
+                                            (teamJ.H),
+                                            (teamJ.skins),
+                                        ],
+                                    )
                                 )
                             )
                         except:
@@ -968,7 +980,7 @@ class Sport:
         y1 = int(self.year)
         y2 = str(y1 + 1)
 
-        dataraw0 = filepath + self.sfile + "\\" + y2 + "\\raw.csv"
+        dataraw0 = f"{filepath}\\{self.s}\\{y2}\\raw.csv"
 
         games = []
 
@@ -986,6 +998,7 @@ class Sport:
                                     bool(int(row[4])),
                                     row[5],
                                     int(row[6]),
+                                    self,
                                     row[8],
                                 )
                             )
@@ -998,6 +1011,7 @@ class Sport:
                                     bool(int(row[4])),
                                     row[5],
                                     int(row[6]),
+                                    self,
                                     " ",
                                 )
                             )
@@ -1010,6 +1024,7 @@ class Sport:
                                 bool(int(row[4])),
                                 row[5],
                                 int(row[6]),
+                                self,
                                 0,
                             )
                         )
@@ -1024,6 +1039,7 @@ class Sport:
                                     bool(int(row[4])),
                                     row[5],
                                     None,
+                                    self,
                                     row[8],
                                 )
                             )
@@ -1036,6 +1052,7 @@ class Sport:
                                     bool(int(row[4])),
                                     row[5],
                                     None,
+                                    self,
                                     " ",
                                 )
                             )
@@ -1048,6 +1065,7 @@ class Sport:
                                 bool(int(row[4])),
                                 row[5],
                                 None,
+                                self,
                                 0,
                             )
                         )
@@ -1141,16 +1159,20 @@ class Sport:
 
         start = datetime.now()
 
-        for i in range(len(self.teams)):
+        for i, teamI in enumerate(self.teams):
             for j in range(i + 1, len(self.teams)):
+                teamJ = self.teams[j]
+                if not teamJ:
+                    continue
                 self.powergames.append(
                     Game(
-                        0,
-                        self.teams[i].codename,
+                        False,
+                        teamI.codename,
                         None,
-                        0,
-                        self.teams[j].codename,
+                        False,
+                        teamJ.codename,
                         None,
+                        self,
                         0,
                         datetime.strptime("2000-01-01", "%Y-%m-%d"),
                     )
@@ -1174,9 +1196,7 @@ class Sport:
         btemp = []
 
         if tourney == "nit":
-            playoffraw = (
-                filepath + self.sfile + "\\" + self.year + "\\" + "playoff_nit.csv"
-            )
+            playoffraw = f"{filepath}\\{self.s}\\{self.year}\\playoff_nit.csv"
 
         with open(playoffraw, "r") as f:
             reader = csv.reader(f, delimiter=",")
@@ -1192,7 +1212,9 @@ class Sport:
 
         round = int(math.log(len(poff[0]), 2))
 
-        p = [[None for x in range(round + 1)] for x in range(len(poff[0]))]
+        p: list[list[Optional[float]]] = [
+            [None for _ in range(round + 1)] for _ in range(len(poff[0]))
+        ]
 
         for n in range(round):
             if len(poff[n]) == 1:
@@ -1203,9 +1225,11 @@ class Sport:
                 if not poff[n][i + 1]:
                     poff[n + 1].append(poff[n][i])
                 else:
-                    g = Game(0, poff[n][i], None, 0, poff[n][i + 1], None)
+                    g = Game(False, poff[n][i], None, False, poff[n][i + 1], None, self)
                     if tourney == "nit" and n < round - 1:
-                        g = Game(1, poff[n][i], None, 0, poff[n][i + 1], None)
+                        g = Game(
+                            True, poff[n][i], None, False, poff[n][i + 1], None, self
+                        )
                     g.w()
                     try:
                         w = g.w1
@@ -1235,31 +1259,31 @@ class Sport:
                 for j in btemp:
                     if not L[i]:
                         if len(L) == i + 1:
-                            wtemp.append(0)
+                            wtemp.append(0.0)
                             break
                         else:
                             if not L[i + 1]:
-                                wtemp.append(1)
+                                wtemp.append(1.0)
                             else:
-                                wtemp.append(0)
+                                wtemp.append(0.0)
                     elif L[i] == "x" and not L[i + 1]:
                         if r == 1:
-                            wtemp.append(1)
+                            wtemp.append(1.0)
                         else:
-                            wtemp.append(0)
+                            wtemp.append(0.0)
                     else:
-                        g = Game(0, L[i], None, 0, j, None)
+                        g = Game(False, L[i], None, False, j, None, self)
                         g.w()
                         v = g.w1
                         if self.s == "nba":
                             v = self.nbaplayoffgame(L[i], j)
                         if r > 1:
-                            v = v * p[poff[0].index(j)][r - 1]
+                            v = v * (p[poff[0].index(j)][r - 1] or 0)
                         if v > 1:
                             print(L[i], j, v)
                         wtemp.append(v)
                 if r > 1:
-                    wtemp = sum(wtemp) * p[i][r - 1]
+                    wtemp = sum(wtemp) * (p[i][r - 1] or 0)
                 else:
                     wtemp = sum(wtemp)
                 p[i][r] = wtemp
@@ -1284,13 +1308,16 @@ class Sport:
         team1 = self.teams[t1]
         team2 = self.teams[t2]
 
+        if not team1 or not team2:
+            return 0.5
+
         seed1 = float(team1.wl(0))
         try:
             seed2 = float(team2.wl(0))
         except:
             return 1
 
-        g = Game(0, t1, None, 0, t2, None)
+        g = Game(False, t1, None, False, t2, None, self)
         g.w()
 
         if seed1 > seed2:
