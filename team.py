@@ -102,20 +102,20 @@ class Team:
                     ][1]
                 except ZeroDivisionError:
                     self.sport.log(
-                        self.name + " plays a team with only one division game"
+                        f"{self.name} plays a team with only one division game"
                     )
                     return
                 try:
                     temp_pfh[0][i] = temp_pfh[0][i] / temp_pfh[1][i]
                 except ZeroDivisionError:
                     self.sport.log(
-                        self.name + "plays a team with only one division game"
+                        f"{self.name} plays a team with only one division game"
                     )
-                    # who is this?
                     return
                 except TypeError:
-                    self.sport.log(self.name + " doesnt play any division games")
-                    self.sport.log(self.name + " plays " + self.n + " games")
+                    self.sport.log(
+                        f"{self.name} doesnt play any division games ({self.n} total)"
+                    )
                     return
 
         for i in self.oppindex[: self.n]:
@@ -138,15 +138,17 @@ class Team:
                         i
                     ][1]
                 except ZeroDivisionError:
-                    self.sport.log(self.codename, " plays a team with only one game")
+                    self.sport.log(f"{self.codename} plays a team with only one game")
                     return
                 try:
                     temp_pah[0][i] = temp_pah[0][i] / temp_pah[1][i]
                 except ZeroDivisionError:
-                    self.sport.log(self.codename, " plays a team with only one game")
+                    self.sport.log(f"{self.codename} plays a team with only one game")
                     return
                 except TypeError:
-                    self.sport.log(self.codename, " doesnt play any division games")
+                    self.sport.log(
+                        f"{self.codename} doesnt play any division games ({self.n} total)"
+                    )
                     return
 
         temp_pfh[0] = [x for x in temp_pfh[0] if x is not None]
@@ -241,12 +243,12 @@ class Team:
             self.mxo = 0.9
 
     def ytd(self):
-        self.sport.log("Year to date results for " + self.codename)
-        self.sport.log("Calculating LOESS for " + self.codename)
+        self.sport.log(f"Year to date results for {self.codename}")
+        self.sport.log(f"Calculating LOESS for {self.codename}")
         try:
             self.smoothed()
         except ZeroDivisionError:
-            self.sport.log("Cant compute LOESS for " + self.codename)
+            self.sport.log(f"Can't compute LOESS for {self.codename}")
             self.loess = ["" for i in range(self.n)]
 
         i = 0
