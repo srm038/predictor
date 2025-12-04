@@ -8,6 +8,7 @@ from scipy import stats
 import statsmodels.nonparametric.api as sm
 import matplotlib.pyplot as plt
 from datetime import datetime
+import numpy as np
 
 from utils import avg
 
@@ -170,8 +171,8 @@ class Team:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             try:
-                (mo, bo, r, tto, stderr) = stats.linregress(temp_pfh[1], temp_pfh[0])
-                (md, bd, r, ttd, stderr) = stats.linregress(temp_pah[1], temp_pah[0])
+                fitO = np.polyfit(temp_pfh[1], temp_pfh[0], 1)
+                fitD = np.polyfit(temp_pah[1], temp_pah[0], 1)
             except ValueError:
                 self.sport.log(
                     "{:}, {:}, {:}, {:}, {:}, {:}, {:}, {:}".format(
@@ -188,28 +189,12 @@ class Team:
                 )
                 return
 
-        if math.isnan(mo):
-            mo = 0
-        if math.isnan(bo):
-            bo = avg(temp_pfh[0])
-        if math.isnan(md):
-            md = 0
-        if math.isnan(bd):
-            bd = avg(temp_pah[0])
-
-        self.mo = mo
-        self.bo = bo
-        self.md = md
-        self.bd = bd
+        self.mo = 0 if math.isnan(fitO[0]) else float(fitO[0])
+        self.bo = 0 if math.isnan(fitO[1]) else float(fitO[1])
+        self.md = 0 if math.isnan(fitD[0]) else float(fitD[0])
+        self.bd = 0 if math.isnan(fitD[1]) else float(fitD[1])
         self.oeff = self.bo - 300 * self.mo**2
         self.deff = -self.bd - 360 * self.md**2
-
-        if math.isnan(tto) or math.isnan(ttd):
-            self.mnd = -0.35
-            self.mxd = 0.35
-            self.mno = -0.35
-            self.mxo = 0.35
-            return
 
         self.mnd = []
         self.mxd = []
