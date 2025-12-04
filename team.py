@@ -576,24 +576,24 @@ class Team:
 
     def sos(self, t: Literal[0, "soo", "sow"] = 0):
 
-        r, soo0, soo1, sow0, sow1 = [], [], [], [], []
-
         if t not in ["soo", "sow", 0]:
             return "Type not defined"
+
+        soo0, soo1, sow0, sow1 = [], [], [], []
 
         h = self.sport.firstFullWeek or self.sport.findFirstFullWeek()
 
         for s in self.sched:
             w = s.week
             if s.t1 == self.codename:
-                b = self.sport.teams[s.t2]
+                i, b = self.sport.teams.index(s.t2), self.sport.teams[s.t2]
                 try:
                     win = s.w1
                 except AttributeError:
                     print(s.t1, s.t2)
                     win = 0.5
             else:
-                b = self.sport.teams[s.t1]
+                i, b = self.sport.teams.index(s.t1), self.sport.teams[s.t1]
                 try:
                     win = s.w2
                 except AttributeError:
@@ -601,38 +601,38 @@ class Team:
                     win = 0.5
             if s.p_flag:
                 sow0.append(win)
-                if b is not None:
+                if b and i is not None:
                     if w > h:
                         try:
-                            soo0.append(self.sport.allwranks[b][w + 1])
+                            soo0.append(self.sport.allwranks[i][w + 1])
                         except IndexError:
                             soo0.append(
                                 next(
                                     x
-                                    for x in reversed(self.sport.allwranks[b])
+                                    for x in reversed(self.sport.allwranks[i])
                                     if x is not None
                                 )
                             )
                     else:
-                        soo0.append(self.sport.allwranks[b][h + 1])
+                        soo0.append(self.sport.allwranks[i][h + 1])
                 else:
                     soo0.append(int(2 * len(self.sport.teams)))
             else:
                 sow1.append(win)
-                if b is not None:
+                if b and i is not None:
                     if w > h:
                         try:
-                            soo1.append(self.sport.allwranks[b][w + 1])
+                            soo1.append(self.sport.allwranks[i][w + 1])
                         except IndexError:
                             soo1.append(
                                 next(
                                     x
-                                    for x in reversed(self.sport.allwranks[b])
+                                    for x in reversed(self.sport.allwranks[i])
                                     if x is not None
                                 )
                             )
                     else:
-                        soo1.append(self.sport.allwranks[b][h + 1])
+                        soo1.append(self.sport.allwranks[i][h + 1])
                 else:
                     soo1.append(int(2 * len(self.sport.teams)))
         if avg(sow1) == 0:
@@ -658,7 +658,7 @@ class Team:
         """
 
         p /= 100
-        wins: list[int | float] = [0 for _ in range(len(self.sport.teams))]
+        wins: list[float] = [0 for _ in self.sport.teams]
         played = []
 
         for s in self.sched:
@@ -668,30 +668,30 @@ class Team:
                         continue
                     else:
                         if s.p1 > s.p2:
-                            if self.sport.teams[s.t2] is None:
-                                continue
+                            if i2 := self.sport.teams.index(s.t2):
+                                wins[i2] = 1.0
                             else:
-                                wins[self.sport.teams.index(s.t2)] = 1
+                                continue
                         elif s.p1 < s.p2:
-                            if self.sport.teams[s.t2] is None:
-                                continue
+                            if i2 := self.sport.teams.index(s.t2):
+                                wins[i2] = 0.0
                             else:
-                                wins[self.sport.teams.index(s.t2)] = 0
+                                continue
                         played.append(s.t2)
                 else:
                     if s.t1 in played:
                         continue
                     else:
                         if s.p1 < s.p2:
-                            if self.sport.teams[s.t1] is None:
-                                continue
+                            if i1 := self.sport.teams.index(s.t1):
+                                wins[i1] = 1.0
                             else:
-                                wins[self.sport.teams.index(s.t1)] = 1
+                                continue
                         elif s.p1 > s.p2:
-                            if self.sport.teams[s.t1] is None:
-                                continue
+                            if i1 := self.sport.teams.index(s.t1):
+                                wins[i1] = 0.0
                             else:
-                                wins[self.sport.teams.index(s.t1)] = 0
+                                continue
                         played.append(s.t1)
 
         for t in self.sport.teams:
@@ -701,23 +701,25 @@ class Team:
                 continue
             else:
                 g = Game(
-                    0,
+                    False,
                     self.codename,
                     None,
-                    0,
+                    False,
                     t.codename,
                     None,
-                    0,
+                    self.sport,
+                    False,
                     datetime.strptime("2000-01-01", "%Y-%m-%d"),
                 )
                 try:
                     g.w()
-                    if g.w1 < p:
-                        wins[self.sport.teams.index(t.codename)] = 0
-                    else:
-                        wins[self.sport.teams.index(t.codename)] = 1
+                    if g.w1 < p and (i := self.sport.teams.index(t.codename)):
+                        wins[i] = 0.0
+                    elif g.w1 > p and (i := self.sport.teams.index(t.codename)):
+                        wins[i] = 1.0
                 except ZeroDivisionError:
-                    wins[self.sport.teams.index(t.codename)] = 0.5
+                    if i := self.sport.teams.index(t.codename):
+                        wins[i] = 0.5
         return wins
 
     def power2(self):
@@ -735,30 +737,30 @@ class Team:
                         continue
                     else:
                         if s.p1 > s.p2:
-                            if self.sport.teams[s.t2] is None:
-                                continue
+                            if i2 := self.sport.teams.index(s.t2):
+                                wins[i2] = 1.0
                             else:
-                                wins[self.sport.teams.index(s.t2)] = 1
+                                continue
                         elif s.p1 < s.p2:
-                            if self.sport.teams[s.t2] is None:
-                                continue
+                            if i2 := self.sport.teams.index(s.t2):
+                                wins[i2] = 0.0
                             else:
-                                wins[self.sport.teams.index(s.t2)] = 0
+                                continue
                         played.append(s.t2)
                 else:
                     if s.t1 in played:
                         continue
                     else:
                         if s.p1 < s.p2:
-                            if self.sport.teams[s.t1] is None:
-                                continue
+                            if i1 := self.sport.teams.index(s.t1):
+                                wins[i1] = 1.0
                             else:
-                                wins[self.sport.teams.index(s.t1)] = 1
+                                continue
                         elif s.p1 > s.p2:
-                            if self.sport.teams[s.t1] is None:
-                                continue
+                            if i1 := self.sport.teams.index(s.t1):
+                                wins[i1] = 0.0
                             else:
-                                wins[self.sport.teams.index(s.t1)] = 0
+                                continue
                         played.append(s.t1)
 
         for t in self.sport.teams:
@@ -780,7 +782,8 @@ class Team:
                 )
                 try:
                     g.w()
-                    wins[self.sport.teams.index(t.codename)] = g.w1
+                    if i := self.sport.teams.index(t.codename):
+                        wins[i] = g.w1
                 except ZeroDivisionError:
                     continue
 
