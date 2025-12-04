@@ -143,7 +143,7 @@ def loadSport():
         t1 = sport.teams[g.t1]
         t2 = sport.teams[g.t2]
         if t1 and t2:
-            if g.p_flag and not g.ps:
+            if g.p_flag and not g.ps and g.p1 and g.p2:
                 if g.p1 > g.p2:
                     t1.skins += t2.skins
                     t2.skins = 0
@@ -207,10 +207,7 @@ def loadSport():
     with open(sport.persistf, "wb") as f:
         pickle.dump((sport.teams, sport.games), f)
 
-    sport.maxNameLen = 0
-    for i in range(1, len(sport.teams[1:])):
-        if len(sport.teams[i].name) > sport.maxNameLen:
-            sport.maxNameLen = len(sport.teams[i].name)
+    sport.maxNameLen = max([len(t.name) for t in sport.teams])
 
     sport.rankteams()
     for n in sport.NR:
