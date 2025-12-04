@@ -440,5 +440,5 @@ class Game:
             print(self.r1, self.t1, "", "", self.t2, self.r2, "", "", "", "", sep=",")
 
 
-class Games(list):
+class Games(list[Game]):
     pass
