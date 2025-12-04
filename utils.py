@@ -164,12 +164,13 @@ def getcoeff(
         return f[0], f[1], f[2]
 
 
-def getroots(a, b, c, d, e, f):
+def getroots(
+    a: float, b: float, c: float, d: float, e: float, f: float
+) -> tuple[int, int]:
     """Get the roots of the point spread"""
 
     m = (e * c**2 + b * f**2) / (c**2 + f**2)
     m = a * d * np.exp(-(((m - b) / c) ** 2) - ((m - e) / f) ** 2)
-    mark = m / 200
 
     if m == 0:
         m = a * d
@@ -218,4 +219,4 @@ def getroots(a, b, c, d, e, f):
     except ValueError:
         r2 = np.ceil((2 * b * f * f + 2 * c * c * e + c * f) / (2 * (c * c + f * f)))
 
-    return max(0, r1), max(3, r2)
+    return max(0, r1.astype(int)), max(3, r2.astype(int))
