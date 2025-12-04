@@ -31,6 +31,7 @@ class Team:
 
         self.rank: int
         self.wrank: int
+        self.skins: int
 
         for key, value in kwargs.items():
             setattr(self, key, value)
@@ -82,10 +83,8 @@ class Team:
             temp_pfh[1].append(None)
             if i is None:
                 temp_pfh[2].append(None)
-            else:
-                temp_pfh[2].append(
-                    [self.sport.teams[i].tpah, self.sport.teams[i].n - 1]
-                )
+            elif opponent := self.sport.teams[i]:
+                temp_pfh[2].append([opponent.tpah, opponent.n - 1])
 
         for i in range(self.n):
             if temp_pfh[0][i] is None:
@@ -121,10 +120,8 @@ class Team:
             temp_pah[1].append(None)
             if i is None:
                 temp_pah[2].append(None)
-            else:
-                temp_pah[2].append(
-                    [self.sport.teams[i].tpfh, self.sport.teams[i].n - 1]
-                )
+            elif opponent := self.sport.teams[i]:
+                temp_pah[2].append([opponent.tpfh, opponent.n - 1])
 
         for i in range(self.n):
             if temp_pah[0][i] is None:
@@ -416,15 +413,15 @@ class Team:
 
         for g in self.sched:
             if g.t1 == self.codename:
-                if self.sport.teams[g.t2]:
-                    if self.conference == self.sport.teams[g.t2].conference:
+                if opponent := self.sport.teams[g.t2]:
+                    if self.conference == opponent.conference:
                         try:
                             c.append(g.wvar(g.p1, g.p2, g.w1))
                         except AttributeError:
                             c.append(g.wvar(g.p1, g.p2, 0.50))
             else:
-                if self.sport.teams[g.t1]:
-                    if self.conference == self.sport.teams[g.t1].conference:
+                if opponent := self.sport.teams[g.t1]:
+                    if self.conference == opponent.conference:
                         try:
                             c.append(g.wvar(g.p2, g.p1, g.w2))
                         except AttributeError:
@@ -769,12 +766,13 @@ class Team:
                 continue
             else:
                 g = Game(
-                    0,
+                    False,
                     self.codename,
                     None,
-                    0,
+                    False,
                     t.codename,
                     None,
+                    self.sport,
                     0,
                     datetime.strptime("2000-01-01", "%Y-%m-%d"),
                 )

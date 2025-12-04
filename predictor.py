@@ -140,16 +140,16 @@ def loadSport():
 
     sport.log("Redistributing skins")
     for g in sport.games:
-        try:
+        t1 = sport.teams[g.t1]
+        t2 = sport.teams[g.t2]
+        if t1 and t2:
             if g.p_flag and not g.ps:
                 if g.p1 > g.p2:
-                    sport.teams[g.t1].skins += sport.teams[g.t2].skins
-                    sport.teams[g.t2].skins = 0
+                    t1.skins += t2.skins
+                    t2.skins = 0
                 elif g.p2 > g.p1:
-                    sport.teams[g.t2].skins += sport.teams[g.t1].skins
-                    sport.teams[g.t1].skins = 0
-        except:
-            pass
+                    t2.skins += t1.skins
+                    t1.skins = 0
 
     open(sport.skinsfile, "w").close()
     for t in sport.teams:
