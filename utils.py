@@ -128,7 +128,7 @@ def platt_scale(f: float, a: float, b: float) -> float:
 
 def platt_scaling(accuracies: list[tuple[int, int, float]]) -> tuple[float, float]:
     x = np.array([np.clip(i[2], 0.01, 0.99) for i in accuracies]).reshape(-1, 1)
-    y = np.array([i[1] for i in accuracies]).reshape(-1, 1)
+    y = np.array([i[1] for i in accuracies]).reshape(-1, 1).ravel()
     platt_scaler = LogisticRegression(penalty="l2", C=1000.0, solver="liblinear")
     platt_scaler.fit(x, y)
     A = platt_scaler.coef_[0][0]
