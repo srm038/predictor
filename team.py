@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
 
 class Team:
-    def __init__(self, codename, name, sport: "Sport", conf="INDY", **kwargs):
+    def __init__(self, codename: str, name: str, sport: "Sport", conf="INDY", **kwargs):
         """ """
 
         self.codename = codename
@@ -814,7 +814,7 @@ class Team:
             self.H = 0
 
 
-class Teams(list):
+class Teams(list[Team]):
     """List-like container for Team objects that supports lookup by
     team codename or full name using string keys, e.g. `teams['A']`.
 

@@ -1406,7 +1406,7 @@ class Sport:
             f.write(g + "\n")
 
     def findFirstFullWeek(self):
-        tT = [[i.codename, 0] for i in self.teams]
+        tT = [(i.codename, 0) for i in self.teams]
         tT2 = [i.codename for i in self.teams]
 
         t = 0
@@ -1416,8 +1416,10 @@ class Sport:
             if self.teams[g.t1] and self.teams[g.t2]:
                 t1 = self.teams.index(g.t1)
                 t2 = self.teams.index(g.t2)
-                tT[t1][1] += 1
-                tT[t2][1] += 1
+                if not t1 or not t2:
+                    continue
+                tT[t1] = (tT[t1][0], tT[t1][1] + 1)
+                tT[t2] = (tT[t2][0], tT[t2][1] + 1)
                 if tT[t1][1] == 3:
                     tT2.pop(tT2.index(tT[t1][0]))
                     if gi > last:
