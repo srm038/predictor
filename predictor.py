@@ -216,6 +216,10 @@ def loadSport():
     for n in sport.NR:
         sport.log("Not ranked: ", n)
 
+    sport.calculateAccuracy()
+    sport.calculatePlatt()
+    sport.calculateAccuracy()
+
     return sport
 
 
