@@ -215,7 +215,6 @@ def loadSport():
 
     sport.calculateAccuracy()
     sport.calculatePlatt()
-    sport.calculateAccuracy()
 
     return sport
 

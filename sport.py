@@ -113,13 +113,9 @@ class Sport:
                     else:
                         if self.s == "fcs" and (
                             s.t2
-                            in open(
-                                filepath + "NCAA FBS\\" + self.year + "\\teams.csv"
-                            ).read()
+                            in open(rf"{filepath}\fbs\\{self.year}\\teams.csv").read()
                             or s.t1
-                            in open(
-                                filepath + "NCAA FBS\\" + self.year + "\\teams.csv"
-                            ).read()
+                            in open(rf"{filepath}\fbs\\{self.year}\\teams.csv").read()
                         ):
                             soo0.append(-int(2 * len(self.teams)))
                         else:
@@ -131,13 +127,9 @@ class Sport:
                     else:
                         if self.s == "fcs" and (
                             s.t2
-                            in open(
-                                filepath + "NCAA FBS\\" + self.year + "\\teams.csv"
-                            ).read()
+                            in open(rf"{filepath}\fbs\\{self.year}\\teams.csv").read()
                             or s.t1
-                            in open(
-                                filepath + "NCAA FBS\\" + self.year + "\\teams.csv"
-                            ).read()
+                            in open(rf"{filepath}\fbs\\{self.year}\\teams.csv").read()
                         ):
                             soo1.append(-int(2 * len(self.teams)))
                         else:
@@ -428,7 +420,7 @@ class Sport:
             except IndexError:
                 pass
 
-            (teams, games) = pickle.load(open(self.persistf, "rb"))
+            (self.teams, self.games) = pickle.load(open(self.persistf, "rb"))
             w += 1
 
         for t in self.teams:
@@ -1078,6 +1070,8 @@ class Sport:
 
     def calculateAccuracy(self):
 
+        (self.teams, self.games) = pickle.load(open(self.persistf, "rb"))
+
         rawAccuracy: list[tuple[int, int, float]] = []
 
         begin = self.findFirstFullWeek()
@@ -1089,18 +1083,17 @@ class Sport:
                 break
 
         self.currentweek = currentweek
-        allGames: list[Game] = [g for g in self.games]
+        games: list[Game] = [g for g in self.games]
         teams = [Team(t.codename, t.name, sport=self) for t in self.teams]
         row = 0
 
-        for w in range(begin, currentweek):
+        for w in range(begin, currentweek + 1):
+            self.games = Games([g for g in games if g.week < w])
             for t in teams:
                 t.updatestats()
             for t in teams:
                 t.updatemetrics()
-
-            week_games = [g for g in allGames if g.week == w]
-            for g in week_games:
+            for g in self.games:
                 g.w()
                 try:
                     a = g.w1
@@ -1114,7 +1107,7 @@ class Sport:
                     rawAccuracy.append((outcome, int(m < 0), 1 - a))
                 row = 1 - row
 
-            print(f"{w}, {avg([i[0] for i in rawAccuracy]):0.2f}")
+            print(f"{w}, {avg([i[0] for i in rawAccuracy]):0.4f}")
 
         open(self.accraw, "w").close()
         with open(self.accraw, "a") as b:
@@ -1127,6 +1120,9 @@ class Sport:
         self.accuracy = avg([i[0] for i in rawAccuracy])
         self.brier = brier(rawAccuracy)
 
+        with open(self.persistf, "wb") as p:
+            pickle.dump((self.teams, self.games), p)
+
     def calculatePlatt(self):
         if not self.rawAccuracy:
             return
@@ -1134,7 +1130,11 @@ class Sport:
         self.platt = platt_scaling(self.rawAccuracy)
         print(f"A: {self.platt[0]:0.4f}, B: {self.platt[1]:0.4f}")
         for g in self.games:
+            g.platt = self.platt
             g.w()
+        with open(self.persistf, "wb") as p:
+            pickle.dump((self.teams, self.games), p)
+        self.calculateAccuracy()
 
     def powm(self):
         m = []
