@@ -10,7 +10,7 @@ kelly_fraction = float(os.getenv("f") or 0.25)
 bankroll = float(os.getenv("BANKROLL") or 0)
 
 
-def ip(o1, o2):
+def ip(o1: int, o2: int) -> tuple[float, float]:
     return (
         -o1 / (100 - o1) if o1 < 0 else 100 / (o1 + 100),
         -o2 / (100 - o2) if o2 < 0 else 100 / (o2 + 100),
@@ -21,18 +21,20 @@ def EF(game: Game, ip: tuple[float, float]) -> tuple[float, float]:
     return game.w1 / ip[0], game.w2 / ip[1]
 
 
-def OR(o1, o2):
+def OR(o1: int, o2: int) -> tuple[float, float]:
     return (
         1 + (-100 / o1 if o1 < 0 else o1 / 100),
         1 + (-100 / o2 if o2 < 0 else o2 / 100),
     )
 
 
-def EV(w1, w2, or1, or2):
+def EV(w1: float, w2: float, or1: float, or2: float) -> tuple[float, float]:
     return (w1 * (or1 - 1) - w2, w2 * (or2 - 1) - w1)
 
 
-def f_star(ev1, ev2, or1, or2, kelly_fraction):
+def f_star(
+    ev1: float, ev2: float, or1: float, or2: float, kelly_fraction: float
+) -> tuple[float, float]:
     return (ev1 / (or1 - 1) * kelly_fraction, ev2 / (or2 - 1) * kelly_fraction)
 
 
