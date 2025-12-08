@@ -280,41 +280,17 @@ class Team:
             if g.t1 == self.codename:
                 if g.p_flag:
                     print(
-                        "",
-                        g.t2,
-                        "",
-                        g.p1,
-                        g.p2,
-                        w1,
-                        spread1,
-                        "",
-                        g.v1,
-                        self.loess[i],
-                        sep=",",
+                        f",{g.t2},,{g.p1},{g.p2},{w1},{spread1},,{g.v1},{self.loess[i]}"
                     )
                 else:
-                    print(
-                        g.r2, g.t2, "", proj1, proj2, w1, spread1, "", "", "", sep=","
-                    )
+                    print(f"{g.r2 or ""},{g.t2},,,{proj1},{proj2},{w1},{spread1},,,,")
             else:
                 if g.p_flag:
                     print(
-                        "",
-                        g.t1,
-                        "",
-                        g.p2,
-                        g.p1,
-                        w2,
-                        spread2,
-                        "",
-                        g.v2,
-                        self.loess[i],
-                        sep=",",
+                        f",{g.t1},,{g.p2},{g.p1},{w2},{spread2},,{g.v2},{self.loess[i]}"
                     )
                 else:
-                    print(
-                        g.r1, g.t1, "", proj2, proj1, w2, spread2, "", "", "", sep=","
-                    )
+                    print(f"{g.r1 or ""},{g.t1},,,{proj2},{proj1},{w2},{spread2},,,,")
             i += 1
 
     def smoothed(self):
