@@ -2,7 +2,8 @@ import os
 from dotenv import load_dotenv
 from math import prod, sqrt
 from game import Game
-from predictor import sport, loadSport
+from sport import Sport
+from predictor import loadSport
 
 load_dotenv()
 
@@ -51,12 +52,17 @@ def loadOdds() -> list[tuple[str, str, int, int]]:
     return odds
 
 
-def runAnalysis(odds: list[tuple[str, str, int, int]]) -> list[dict]:
+def runAnalysis(odds: list[tuple[str, str, int, int]], sport: Sport) -> list[dict]:
 
     analyses = []
 
     for g in odds:
         t1, t2, o1, o2 = g
+
+        if not sport.teams[t1] or not sport.teams[t2]:
+            print(f"Skipping {t1} vs {t2} - team not found")
+            continue
+
         game = Game(t1=t1, t2=t2, h1=False, h2=True, p1=None, p2=None, sport=sport)
         game.w()
 
@@ -64,7 +70,6 @@ def runAnalysis(odds: list[tuple[str, str, int, int]]) -> list[dict]:
 
         analysis["odds"] = (o1, o2)
         analysis["ip"] = ip(o1, o2)
-        analysis["EF"] = EF(game, analysis["ip"])
         analysis["OR"] = OR(o1, o2)
         analysis["EV"] = EV(game.w1, game.w2, analysis["OR"][0], analysis["OR"][1])
         analysis["f*"] = f_star(
@@ -86,12 +91,12 @@ def runAnalysis(odds: list[tuple[str, str, int, int]]) -> list[dict]:
         if a["EV"][0] > 0:
             if a["f*"][0] * bankroll >= 0.1:
                 print(
-                    f"Bet ${a['f*'][0] * bankroll:0.2f} ({a['EV'][0]:0.2f}, {a['EF'][0]:0.2f}) on {a['game'].t1} (@ {a['game'].t2}) {'\uEA6C' if warning else ''}"
+                    f"Bet ${a['f*'][0] * bankroll:0.2f} ({a['EV'][0]:0.2f}) on {a['game'].t1} (@ {a['game'].t2}) {'\uEA6C' if warning else ''}"
                 )
         if a["EV"][1] > 0:
             if a["f*"][1] * bankroll >= 0.1:
                 print(
-                    f"Bet ${a['f*'][1] * bankroll:0.2f} ({a['EV'][1]:0.2f}, {a['EF'][1]:0.2f}) on {a['game'].t2} (v {a['game'].t1}) {'\uEA6C' if warning else ''}"
+                    f"Bet ${a['f*'][1] * bankroll:0.2f} ({a['EV'][1]:0.2f}) on {a['game'].t2} (v {a['game'].t1}) {'\uEA6C' if warning else ''}"
                 )
 
     return analyses
