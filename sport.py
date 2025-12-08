@@ -64,13 +64,61 @@ class Sport:
         self.gamesfile = rf"{filepath}\{self.s}\{self.year}\games.txt"
         self.skinsfile = rf"{filepath}\{self.s}\{self.year}\skins.txt"
 
-        processRawData(self.dataraw)
+    def loadTeams(self):
+        """Load teams from teamsraw file."""
+        self.teams = Teams()
+
+        with open(self.teamsraw, "r") as f:
+            reader = csv.reader(f, delimiter=",")
+            for row in reader:
+                self.teams.append(Team(row[0], row[1], self, row[2]))
+
+        for t in self.teams:
+            t.skins = 1
+
+    def loadGames(self):
+        """Load games from dataraw file."""
+        self.games = Games()
+        with open(self.dataraw, "r") as f:
+            reader = csv.reader(f, delimiter=",")
+            i = 1
+            for row in reader:
+                self.games.append(self.parseGame(row, i))
+                i += 1
+            del i
+
+    def redistributeSkins(self):
+        """Redistribute skins among teams based on games played."""
+        self.log("Redistributing skins")
+        for g in self.games:
+            t1 = self.teams[g.t1]
+            t2 = self.teams[g.t2]
+            if t1 and t2:
+                if g.p_flag and not g.ps and g.p1 and g.p2:
+                    if g.p1 > g.p2:
+                        t1.skins += t2.skins
+                        t2.skins = 0
+                    elif g.p2 > g.p1:
+                        t2.skins += t1.skins
+                        t1.skins = 0
+
+        open(self.skinsfile, "w").close()
+        with open(self.skinsfile, "a") as f:
+            for t in self.teams:
+                f.write(t.codename + "," + str(t.skins) + "\n")
 
     def log(self, *text):
         """Write log event to this sport's logfile (wrapper around utils.log)."""
         log(self.logfile, *text)
 
     def rankteams(self):
+
+        self.loadGames()
+        self.loadTeams()
+        for t in self.teams:
+            t.updatestats()
+        for t in self.teams:
+            t.updatemetrics()
 
         self.log("Ranking teams")
 
@@ -215,6 +263,9 @@ class Sport:
         for t in self.NR:
             with open(self.rankingraw, "a") as f:
                 f.write(",".join(["", str(t), "\n"]))
+
+        with open(self.persistf, "wb") as p:
+            pickle.dump((self.teams, self.games), p)
 
     def rankwvara(self):
         print("Ranking teams by WVARA to date.....")
@@ -485,9 +536,12 @@ class Sport:
                     f.write(",".join([str(t) for t in w]) + "\n")
                 i += 1
 
-        pickle.dump(self.allranks, open(self.allranksf, "wb"))
-        pickle.dump(self.allwranks, open(self.allwranksf, "wb"))
-        pickle.dump((self.teams, self.games), open(self.persistf, "wb"))
+        with open(self.allranksf, "wb") as a:
+            pickle.dump(self.allranks, a)
+        with open(self.allwranksf, "wb") as a:
+            pickle.dump(self.allwranks, a)
+        with open(self.persistf, "wb") as a:
+            pickle.dump((self.teams, self.games), a)
 
         self.log("Done")
 
@@ -1070,7 +1124,8 @@ class Sport:
 
     def calculateAccuracy(self):
 
-        (self.teams, self.games) = pickle.load(open(self.persistf, "rb"))
+        with open(self.persistf, "rb") as p:
+            (self.teams, self.games) = pickle.load(p)
 
         rawAccuracy: list[tuple[int, int, float]] = []
 
