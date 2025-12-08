@@ -101,10 +101,7 @@ config = {
 }
 
 
-def loadSport():
-    sportCode = input("Sport:   ")
-    year = input("Year:    ")
-
+def loadSport(sportCode: str, year: int) -> Sport:
     if sportCode in config.keys():
         sport = Sport(
             sportCode,
@@ -114,6 +111,8 @@ def loadSport():
             config[sportCode]["ha"],
             config[sportCode]["pyth"],
         )
+    else:
+        raise ValueError("Unsupported sport: " + sportCode)
 
     sport.log("\n---\n")
     sport.log(datetime.now().strftime("%m-%d-%y %H:%M:%S"))
@@ -122,39 +121,9 @@ def loadSport():
 
     processRawData(sport.dataraw)
 
-    with open(sport.teamsraw, "r") as f:
-        reader = csv.reader(f, delimiter=",")
-        for row in reader:
-            sport.teams.append(Team(row[0], row[1], sport, row[2]))
+    sport.loadTeams()
 
-    for t in sport.teams:
-        t.skins = 1
-
-    with open(sport.dataraw, "r") as f:
-        reader = csv.reader(f, delimiter=",")
-        i = 1
-        for row in reader:
-            sport.games.append(sport.parseGame(row, i))
-            i += 1
-        del i
-
-    sport.log("Redistributing skins")
-    for g in sport.games:
-        t1 = sport.teams[g.t1]
-        t2 = sport.teams[g.t2]
-        if t1 and t2:
-            if g.p_flag and not g.ps and g.p1 and g.p2:
-                if g.p1 > g.p2:
-                    t1.skins += t2.skins
-                    t2.skins = 0
-                elif g.p2 > g.p1:
-                    t2.skins += t1.skins
-                    t1.skins = 0
-
-    open(sport.skinsfile, "w").close()
-    for t in sport.teams:
-        with open(sport.skinsfile, "a") as f:
-            f.write(t.codename + "," + str(t.skins) + "\n")
+    sport.loadGames()
 
     for t in sport.teams:
         t.updatestats()
@@ -209,14 +178,11 @@ def loadSport():
 
     sport.maxNameLen = max([len(t.name) for t in sport.teams])
 
+    sport.calculateAccuracy()
+    sport.calculatePlatt()
+
     sport.rankteams()
     for n in sport.NR:
         sport.log("Not ranked: ", n)
 
-    sport.calculateAccuracy()
-    sport.calculatePlatt()
-
     return sport
-
-
-sport = loadSport()
