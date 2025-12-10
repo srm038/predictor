@@ -59,8 +59,11 @@ def runAnalysis(odds: list[tuple[str, str, int, int]], sport: Sport) -> list[dic
     for g in odds:
         t1, t2, o1, o2 = g
 
-        if not sport.teams[t1] or not sport.teams[t2]:
-            print(f"Skipping {t1} vs {t2} - team not found")
+        if not sport.teams[t1]:
+            print(f"Skipping {t1} - team not found")
+            continue
+        if not sport.teams[t2]:
+            print(f"Skipping {t2} - team not found")
             continue
 
         game = Game(t1=t1, t2=t2, h1=False, h2=True, p1=None, p2=None, sport=sport)
