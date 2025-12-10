@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 from dateutil.relativedelta import relativedelta, MO, TH, WE
 import math
 import pickle
@@ -101,7 +102,10 @@ config = {
 }
 
 
-def loadSport(sportCode: str, year: int) -> Sport:
+def loadSport(
+    sportCode: Literal["fbs", "fcs", "nfl", "nba", "mbb", "wbb", "d1b", "fb", "iru"],
+    year: int,
+) -> Sport:
     if sportCode in config.keys():
         sport = Sport(
             sportCode,
@@ -112,7 +116,7 @@ def loadSport(sportCode: str, year: int) -> Sport:
             config[sportCode]["pyth"],
         )
     else:
-        raise ValueError("Unsupported sport: " + sportCode)
+        raise ValueError(f"Unsupported sport: {sportCode}")
 
     sport.log("\n---\n")
     sport.log(datetime.now().strftime("%m-%d-%y %H:%M:%S"))
