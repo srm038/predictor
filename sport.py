@@ -61,7 +61,7 @@ class Sport:
         self.comprehensive = rf"{filepath}\{self.s}\{self.year}\allteams.csv"
         self.weekly = rf"{filepath}\{self.s}\{self.year}\weekly.csv"
         self.logfile = rf"{filepath}\{self.s}\{self.year}\log.txt"
-        self.gamesfile = rf"{filepath}\{self.s}\{self.year}\games.txt"
+        self.gamesfile = rf"{filepath}\{self.s}\{self.year}\games.csv"
         self.skinsfile = rf"{filepath}\{self.s}\{self.year}\skins.txt"
 
     def loadTeams(self):
@@ -79,6 +79,7 @@ class Sport:
     def loadGames(self):
         """Load games from dataraw file."""
         self.games = Games()
+        open(self.gamesfile, "w").close()
         with open(self.dataraw, "r") as f:
             reader = csv.reader(f, delimiter=",")
             i = 1
@@ -1126,7 +1127,6 @@ class Sport:
 
         with open(self.persistf, "rb") as p:
             (self.teams, self.games) = pickle.load(p)
-
         rawAccuracy: list[tuple[int, int, float]] = []
 
         begin = self.findFirstFullWeek()
@@ -1139,28 +1139,59 @@ class Sport:
 
         self.currentweek = currentweek
         games: list[Game] = [g for g in self.games]
-        teams = [Team(t.codename, t.name, sport=self) for t in self.teams]
         row = 0
 
         for w in range(begin, currentweek + 1):
-            self.games = Games([g for g in games if g.week < w])
-            for t in teams:
+            prev_games = Games([g for g in games if g.week < w])
+            week_games = [g for g in games if g.week == w]
+
+            orig_games = self.games
+            orig_teams = self.teams
+
+            teams_temp = [Team(t.codename, t.name, sport=self) for t in orig_teams]
+            self.games = prev_games
+            temp_teams = Teams()
+            for tt in teams_temp:
+                temp_teams.append(tt)
+            self.teams = temp_teams
+
+            for t in teams_temp:
                 t.updatestats()
-            for t in teams:
+            for t in teams_temp:
                 t.updatemetrics()
-            for g in self.games:
-                g.w()
+
+            for g in week_games:
+
+                orig_p1, orig_p2 = g.p1, g.p2
+                if orig_p1 is None or orig_p2 is None:
+                    continue
+
+                g.p1, g.p2 = None, None
+
+                try:
+                    g.w()
+                except Exception:
+
+                    pass
+
                 try:
                     a = g.w1
-                except:
+                except Exception:
                     a = 0.5
-                m = (g.p1 or 0) - (g.p2 or 0)
-                outcome = (a > 0.5) * (m > 0) + (a < 0.5) * (m < 0)
+
+                m = (orig_p1 or 0) - (orig_p2 or 0)
+                outcome = int((a > 0.5 and m > 0) or (a < 0.5 and m < 0))
+
                 if row:
                     rawAccuracy.append((outcome, int(m > 0), a))
                 else:
                     rawAccuracy.append((outcome, int(m < 0), 1 - a))
                 row = 1 - row
+
+                g.p1, g.p2 = orig_p1, orig_p2
+
+            self.games = orig_games
+            self.teams = orig_teams
 
             print(f"{w}, {avg([i[0] for i in rawAccuracy]):0.4f}")
 
