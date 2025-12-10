@@ -3,7 +3,7 @@ import warnings
 import math
 from math import copysign as sign
 from math import floor, ceil
-from game import Game
+from game import Game, Games
 from scipy import stats
 import statsmodels.nonparametric.api as sm
 import matplotlib.pyplot as plt
@@ -18,13 +18,9 @@ if TYPE_CHECKING:
 
 class Team:
     def __init__(self, codename: str, name: str, sport: "Sport", conf="INDY", **kwargs):
-        """ """
-
         self.codename = codename
         self.name = name
-        self.pfh = []
-        self.pah = []
-        self.sched = []
+        self.sched = Games()
         self.conference = conf
         self.sport = sport
         self.color = "black"
@@ -42,9 +38,9 @@ class Team:
         return self.codename == value
 
     def updatestats(self):
-        self.sched = []
-        self.pah = []
-        self.pfh = []
+        self.sched = Games()
+        self.pfh: list[Optional[int]] = []
+        self.pah: list[Optional[int]] = []
 
         for i in self.sport.games:
             if i.t1 == self.codename or i.t2 == self.codename:
@@ -176,17 +172,7 @@ class Team:
                 fitD = np.polyfit(temp_pah[1], temp_pah[0], 1)
             except ValueError:
                 self.sport.log(
-                    "{:}, {:}, {:}, {:}, {:}, {:}, {:}, {:}".format(
-                        self.sched[self.pfh.index(None)].id,
-                        self.codename,
-                        self.sched[self.pfh.index(None)].t2,
-                        self.pfh,
-                        temp_pfh[1],
-                        temp_pfh[0],
-                        self.pah,
-                        temp_pah[1],
-                        temp_pah[0],
-                    )
+                    f"{self.codename}, {self.pfh}, {temp_pfh[1]}, {temp_pfh[0]}, {self.pah}, {temp_pah[1]}, {temp_pah[0]}"
                 )
                 return
 
@@ -775,7 +761,7 @@ class Team:
         movs = []
 
         for g in self.sched:
-            if g.p_flag:
+            if g.p_flag and g.p1 is not None and g.p2 is not None:
                 if g.t1 == self.codename:
                     movs.append(g.p1 - g.p2)
                 else:
