@@ -1143,12 +1143,14 @@ class Sport:
 
         for w in range(begin, currentweek + 1):
             prev_games = Games([g for g in games if g.week < w])
-            week_games = [g for g in games if g.week == w]
+            week_games = Games([g for g in games if g.week == w])
 
             orig_games = self.games
             orig_teams = self.teams
 
-            teams_temp = [Team(t.codename, t.name, sport=self) for t in orig_teams]
+            teams_temp = Teams(
+                [Team(t.codename, t.name, sport=self) for t in orig_teams]
+            )
             self.games = prev_games
             temp_teams = Teams()
             for tt in teams_temp:
