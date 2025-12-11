@@ -3,10 +3,8 @@ from typing import Literal
 from dateutil.relativedelta import relativedelta, MO, TH, WE
 import math
 import pickle
-import csv
 
 from sport import Sport
-from team import Team
 from utils import processRawData
 
 
