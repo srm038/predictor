@@ -9,6 +9,7 @@ load_dotenv()
 
 kelly_fraction = float(os.getenv("f") or 0.25)
 bankroll = float(os.getenv("BANKROLL") or 0)
+stabilizer = float(os.getenv("STABILIZER") or 1.0)
 
 
 def ip(o1: int, o2: int) -> tuple[float, float]:
@@ -86,21 +87,27 @@ def runAnalysis(odds: list[tuple[str, str, int, int]], sport: Sport) -> list[dic
         analyses.append(analysis)
 
     for a in sorted(analyses, key=lambda x: max(x["f*"]), reverse=True):
-        if a["EV"][0] <= 0.2 and a["EV"][1] <= 0.2:
-            continue
-        warning = (a["odds"][0] > 0 and a["game"].w1 > 0.5) or (
-            a["odds"][1] > 0 and a["game"].w2 > 0.5
+        warning = (a["EV"][0] > 0 and a["odds"][0] > 0) or (
+            a["EV"][1] > 0 and a["odds"][1] > 0
         )
-        if a["EV"][0] > 0:
+        if a["EV"][0] > 0.2:
             if a["f*"][0] * bankroll >= 0.1:
                 print(
-                    f"Bet ${a['f*'][0] * bankroll:0.2f} ({a['EV'][0]:0.2f}) on {a['game'].t1} (@ {a['game'].t2}) {'\uEA6C' if warning else ''}"
+                    f"Bet ${a['f*'][0] * bankroll:0.2f} ({a['EV'][0]:0.2f}, {a['game'].w1:0.0%}) on {a['game'].t1} (@ {a['game'].t2}) {'\uEA6C' if warning else ''}"
                 )
-        if a["EV"][1] > 0:
+        elif a["EV"][0] > 0.5 and a["game"].w1 > stabilizer:
+            print(
+                f"Bet ${0.01 * bankroll:0.2f} ({a['EV'][0]:0.2f}, {a['game'].w1:0.0%}) on {a['game'].t1} (@ {a['game'].t2}) {'\uEA6C' if warning else ''} \uEAA5"
+            )
+        if a["EV"][1] > 0.2:
             if a["f*"][1] * bankroll >= 0.1:
                 print(
-                    f"Bet ${a['f*'][1] * bankroll:0.2f} ({a['EV'][1]:0.2f}) on {a['game'].t2} (v {a['game'].t1}) {'\uEA6C' if warning else ''}"
+                    f"Bet ${a['f*'][1] * bankroll:0.2f} ({a['EV'][1]:0.2f}, {a['game'].w2:0.0%}) on {a['game'].t2} (v {a['game'].t1}) {'\uEA6C' if warning else ''}"
                 )
+        elif a["EV"][1] > 0.5 and a["game"].w2 >= stabilizer:
+            print(
+                f"Bet ${0.01 * bankroll:0.2f} ({a['EV'][1]:0.2f}, {a['game'].w2:0.0%}) on {a['game'].t2} (v {a['game'].t1}) {'\uEA6C' if warning else ''} \uEAA5"
+            )
 
     return analyses
 
