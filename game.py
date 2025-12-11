@@ -22,7 +22,7 @@ class Game:
         p2: Optional[int],
         sport: "Sport",
         postseason: Optional[int | str] = 0,
-        day=datetime.strptime("2000-01-01", "%Y-%m-%d"),
+        day=datetime.strptime("2000-01-01", r"%Y-%m-%d"),
         id=None,
     ):
         """ """
