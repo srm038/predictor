@@ -170,7 +170,7 @@ class Team:
             try:
                 fitO = np.polyfit(temp_pfh[1], temp_pfh[0], 1)
                 fitD = np.polyfit(temp_pah[1], temp_pah[0], 1)
-            except ValueError:
+            except (ValueError, TypeError):
                 self.sport.log(
                     f"{self.codename}, {self.pfh}, {temp_pfh[1]}, {temp_pfh[0]}, {self.pah}, {temp_pah[1]}, {temp_pah[0]}"
                 )
@@ -206,13 +206,16 @@ class Team:
             if len(i) == 0:
                 if i == mnd:
                     mnd = [self.bd - min(temp_pah[0])]
+                    self.sport.log(f"{self.name} temp_pah", temp_pah)
                 elif i == mxd:
                     mxd = [self.bd + max(temp_pah[0])]
+                    self.sport.log(f"{self.name} temp_pah", temp_pah)
                 elif i == mno:
                     mno = [self.bo - min(temp_pfh[0])]
+                    self.sport.log(f"{self.name} temp_pfh", temp_pfh)
                 elif i == mxo:
                     mxo = [self.bo + max(temp_pfh[0])]
-                print(self.name)
+                    self.sport.log(f"{self.name} temp_pfh", temp_pfh)
 
         self.mnd = sign(avg(mnd), -1)
         self.mxd = sign(avg(mxd), 1)
