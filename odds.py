@@ -137,7 +137,6 @@ def runParlays(analyses: list[dict]) -> list[dict]:
         tp = []
         tip = []
         tev = []
-        tef = []
         tor = []
         pick = []
         skip = False
@@ -151,14 +150,12 @@ def runParlays(analyses: list[dict]) -> list[dict]:
                 continue
             tp.append(g["game"].w1 if pick[-1] == 0 else g["game"].w2)
             tip.append(g["ip"][pick[-1]])
-            tef.append(g["EF"][pick[-1]])
             tev.append(g["EV"][pick[-1]])
             tor.append(g["OR"][pick[-1]])
         if not skip:
             p.update({"tp": prod(tp)})
             p.update({"tip": prod(tip)})
             p.update({"tev": sum(tev)})
-            p.update({"tef": prod(tef)})
             p.update({"tor": prod(tor)})
             p.update({"pick": pick})
             p.update({"f*": (p["tev"] / (p["tor"] - 1)) * kelly_fraction})
@@ -174,7 +171,7 @@ def runParlays(analyses: list[dict]) -> list[dict]:
         ]
         if p["f*"] * bankroll >= 0.1:
             print(
-                f"Bet ${p['f*'] * bankroll:0.2f} ({p['tev']:0.2f}, {p['tef']:0.2f}) {' + '.join(picks)}"
+                f"Bet ${p['f*'] * bankroll:0.2f} ({p['tev']:0.2f}, {p['tp']:0.0%}) {' + '.join(picks)}"
             )
 
     return parlays
