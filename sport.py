@@ -2,16 +2,30 @@ import pickle
 import math
 from game import Game, Games
 from team import Team, Teams
-from utils import processRawData, log, avg, brier, platt_scaling, filepath
+from utils import log, avg, brier, platt_scaling, filepath
 from operator import itemgetter
 import numpy as np
 import csv
 from datetime import datetime
-from typing import Optional
+from typing import Optional, TypedDict
+
+
+class URLInfo(TypedDict):
+    url: str
+    sub: str
 
 
 class Sport:
-    def __init__(self, s, y, mov, ps, ha, pyth):
+    def __init__(
+        self,
+        s,
+        y,
+        mov,
+        ps,
+        ha,
+        pyth,
+        url: URLInfo,
+    ):
         """
         Initializes a new sport.
 
@@ -31,6 +45,7 @@ class Sport:
         self.year = y
         self.ha = ha
         self.pyth = pyth
+        self.url = url
         self.platt = (0, 0)
         self.accuracy = 0.0
         self.rawAccuracy: list[tuple[int, int, float]] = []
@@ -1545,3 +1560,6 @@ class Sport:
                         last = self.games.index(g)
         self.firstFullWeek = self.games[last].week
         return self.firstFullWeek
+
+    def getDataURL(self):
+        return f"https://masseyratings.com/scores.php?s={self.url['url']}{self.year}&sub={self.url['sub']}&all=1&mode=3&sch=on&format=0"

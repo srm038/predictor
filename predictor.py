@@ -1,17 +1,25 @@
 from datetime import datetime
-from typing import Literal
+from typing import Literal, TypedDict
 from dateutil.relativedelta import relativedelta, MO, TH, WE
 import math
 import pickle
 
-from sport import Sport
-from utils import processRawData
+from sport import Sport, URLInfo
+from utils import fetchData, processRawData
 
 
-config = {
+class Config(TypedDict):
+    url: URLInfo
+    mov: int
+    sfile: str
+    ps: dict[str, float]
+    ha: float
+    pyth: float
+
+
+config: dict[str, Config] = {
     "fbs": {
-        "url": "cf",
-        "sub": "11604",
+        "url": {"url": "cf", "sub": "11604"},
         "mov": 28,
         "sfile": "NCAA FBS",
         "ps": {"fbs": 5},
@@ -19,8 +27,7 @@ config = {
         "pyth": 2.217,
     },
     "fcs": {
-        "url": "cf",
-        "sub": "11605",
+        "url": {"url": "cf", "sub": "11605"},
         "mov": 28,
         "sfile": "NCAA FCS",
         "ps": {"fcs": 3},
@@ -28,8 +35,7 @@ config = {
         "pyth": 1.913,
     },
     "nfl": {
-        "url": "nfl",
-        "sub": "279539",
+        "url": {"url": "nfl", "sub": "279539"},
         "mov": 21,
         "sfile": "NFL",
         "ps": {"nfl": 3},
@@ -37,8 +43,7 @@ config = {
         "pyth": 2.583,
     },
     "nba": {
-        "url": "nba",
-        "sub": "292150",
+        "url": {"url": "nba", "sub": "292150"},
         "mov": 18,
         "sfile": "NBA",
         "ps": {"nba": 3},
@@ -46,8 +51,7 @@ config = {
         "pyth": 13.263,
     },
     "mbb": {
-        "url": "cb",
-        "sub": "11590",
+        "url": {"url": "cb", "sub": "11590"},
         "mov": 18,
         "sfile": "MBB",
         "ps": {
@@ -62,8 +66,7 @@ config = {
         "pyth": 8.119,
     },
     "wbb": {
-        "url": "cbw",
-        "sub": "11590",
+        "url": {"url": "cbw", "sub": "11590"},
         "mov": 18,
         "sfile": "WBB",
         "ps": {"wbb": 1, "ncaa": 5, "nit": 3, "wnit": 3, "wbi": 1.25},
@@ -71,8 +74,7 @@ config = {
         "pyth": 6.557,
     },
     "d1b": {
-        "url": "cbase",
-        "sub": "11590",
+        "url": {"url": "cbase", "sub": "11590"},
         "mov": 10,
         "sfile": "D1B",
         "ps": {"d1b": 2},
@@ -80,8 +82,7 @@ config = {
         "pyth": 2,
     },
     "fb": {
-        "url": "cfb",
-        "sub": "11590",
+        "url": {"url": "cfb", "sub": "11590"},
         "mov": 30,
         "sfile": "FB",
         "ps": {"fb": 1},
@@ -89,8 +90,7 @@ config = {
         "pyth": 2,
     },
     "iru": {
-        "url": "iru",
-        "sub": "11590",
+        "url": {"url": "iru", "sub": "11590"},
         "mov": 30,
         "sfile": "IRU",
         "ps": {"rwc": 1},
@@ -112,6 +112,7 @@ def loadSport(
             config[sportCode]["ps"],
             config[sportCode]["ha"],
             config[sportCode]["pyth"],
+            config[sportCode]["url"],
         )
     else:
         raise ValueError(f"Unsupported sport: {sportCode}")
@@ -120,6 +121,14 @@ def loadSport(
     sport.log(datetime.now().strftime("%m-%d-%y %H:%M:%S"))
 
     sport.log("Loading data and recalculating")
+
+    try:
+        data = fetchData(sport.getDataURL())
+        with open(sport.dataraw, "w") as f:
+            for line in data:
+                f.write(f"{line}\n")
+    except:
+        sport.log("Failed to fetch data from online source")
 
     processRawData(sport.dataraw)
 

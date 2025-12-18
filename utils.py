@@ -7,6 +7,8 @@ import numpy as np
 from sklearn.linear_model import LogisticRegression
 import os
 from scipy.optimize import curve_fit, OptimizeWarning
+import requests
+from bs4 import BeautifulSoup
 
 
 filepath = rf"{os.getcwd()}\data"
@@ -220,3 +222,12 @@ def getroots(
         r2 = np.ceil((2 * b * f * f + 2 * c * c * e + c * f) / (2 * (c * c + f * f)))
 
     return max(0, r1.astype(int)), max(3, r2.astype(int))
+
+
+def fetchData(url: str) -> list[str]:
+
+    response = requests.get(url)
+    response.raise_for_status()
+    soup = BeautifulSoup(response.text, "html.parser")
+    data = soup.find_all("pre")[0].get_text().strip()
+    return data.splitlines()[:-2]
