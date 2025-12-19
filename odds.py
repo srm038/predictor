@@ -6,11 +6,20 @@ from sport import Sport
 from predictor import loadSport
 import numpy as np
 
-load_dotenv()
 
-kelly_fraction = float(os.getenv("f") or 0.25)
-bankroll = float(os.getenv("BANKROLL") or 0)
-stabilizer = float(os.getenv("STABILIZER") or 1.0)
+def load_config(dotenv_path: str | None = None, **kwargs) -> None:
+    """Set env vars (kwargs), load the .env next to this module, and update module-level config."""
+
+    global kelly_fraction, bankroll, stabilizer
+
+    load_dotenv(override=True)
+
+    kelly_fraction = float(os.getenv("f") or 0.25)
+    bankroll = float(os.getenv("BANKROLL") or 0)
+    stabilizer = float(os.getenv("STABILIZER") or 1.0)
+
+
+load_config()
 
 
 def ip(o1: int, o2: int) -> tuple[float, float]:
