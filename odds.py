@@ -4,6 +4,7 @@ from math import prod, sqrt
 from game import Game
 from sport import Sport
 from predictor import loadSport
+import numpy as np
 
 load_dotenv()
 
@@ -38,6 +39,10 @@ def f_star(
     ev1: float, ev2: float, or1: float, or2: float, kelly_fraction: float
 ) -> tuple[float, float]:
     return (ev1 / (or1 - 1) * kelly_fraction, ev2 / (or2 - 1) * kelly_fraction)
+
+
+def betAmount(f_star: float, bankroll: float) -> float:
+    return np.clip(f_star, 0, 0.05) * bankroll
 
 
 def loadOdds() -> list[tuple[str, str, int, int]]:
@@ -93,7 +98,7 @@ def runAnalysis(odds: list[tuple[str, str, int, int]], sport: Sport) -> list[dic
         if a["EV"][0] > 0.2:
             if a["f*"][0] * bankroll >= 0.1:
                 print(
-                    f"Bet ${a['f*'][0] * bankroll:0.2f} ({a['EV'][0]:0.2f}, {a['game'].w1:0.0%}) on {a['game'].t1} (@ {a['game'].t2}) {'\uEA6C' if warning else ''}"
+                    f"Bet ${betAmount(a['f*'][0], bankroll):0.2f} ({a['EV'][0]:0.2f}, {a['game'].w1:0.0%}) on {a['game'].t1} (@ {a['game'].t2}) {'\uEA6C' if warning else ''}"
                 )
         elif a["EV"][0] > 0.5 and a["game"].w1 > stabilizer:
             print(
@@ -102,7 +107,7 @@ def runAnalysis(odds: list[tuple[str, str, int, int]], sport: Sport) -> list[dic
         if a["EV"][1] > 0.2:
             if a["f*"][1] * bankroll >= 0.1:
                 print(
-                    f"Bet ${a['f*'][1] * bankroll:0.2f} ({a['EV'][1]:0.2f}, {a['game'].w2:0.0%}) on {a['game'].t2} (v {a['game'].t1}) {'\uEA6C' if warning else ''}"
+                    f"Bet ${betAmount(a['f*'][1], bankroll):0.2f} ({a['EV'][1]:0.2f}, {a['game'].w2:0.0%}) on {a['game'].t2} (v {a['game'].t1}) {'\uEA6C' if warning else ''}"
                 )
         elif a["EV"][1] > 0.5 and a["game"].w2 >= stabilizer:
             print(
