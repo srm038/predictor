@@ -185,7 +185,7 @@ def runParlays(analyses: list[dict]) -> list[dict]:
         ]
         if p["f*"] * bankroll >= 0.1:
             print(
-                f"Bet ${p['f*'] * bankroll:0.2f} ({p['tev']:0.2f}, {p['tp']:0.0%}) {' + '.join(picks)}"
+                f"Bet ${betAmount(p['f*'], bankroll):0.2f} ({p['tev']:0.2f}, {p['tp']:0.0%}) {' + '.join(picks)}"
             )
 
     return parlays
