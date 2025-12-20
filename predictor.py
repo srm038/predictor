@@ -17,7 +17,9 @@ class Config(TypedDict):
     pyth: float
 
 
-config: dict[str, Config] = {
+type SportCode = Literal["fbs", "fcs", "nfl", "nba", "mbb", "wbb", "d1b", "fb", "iru"]
+
+config: dict[SportCode, Config] = {
     "fbs": {
         "url": {"url": "cf", "sub": "11604"},
         "mov": 28,
@@ -101,7 +103,7 @@ config: dict[str, Config] = {
 
 
 def loadSport(
-    sportCode: Literal["fbs", "fcs", "nfl", "nba", "mbb", "wbb", "d1b", "fb", "iru"],
+    sportCode: SportCode,
     year: int,
 ) -> Sport:
     if sportCode in config.keys():

@@ -3,127 +3,8 @@ from dotenv import load_dotenv
 from math import prod, sqrt
 from game import Game
 from sport import Sport
-from predictor import loadSport
+from predictor import SportCode, loadSport
 import numpy as np
-
-
-def load_config(dotenv_path: str | None = None, **kwargs) -> None:
-    """Set env vars (kwargs), load the .env next to this module, and update module-level config."""
-
-    global kelly_fraction, bankroll, stabilizer
-
-    load_dotenv(override=True)
-
-    kelly_fraction = float(os.getenv("f") or 0.25)
-    bankroll = float(os.getenv("BANKROLL") or 0)
-    stabilizer = float(os.getenv("STABILIZER") or 1.0)
-
-
-load_config()
-
-
-def ip(o1: int, o2: int) -> tuple[float, float]:
-    return (
-        -o1 / (100 - o1) if o1 < 0 else 100 / (o1 + 100),
-        -o2 / (100 - o2) if o2 < 0 else 100 / (o2 + 100),
-    )
-
-
-def EF(game: Game, ip: tuple[float, float]) -> tuple[float, float]:
-    return game.w1 / ip[0], game.w2 / ip[1]
-
-
-def OR(o1: int, o2: int) -> tuple[float, float]:
-    return (
-        1 + (-100 / o1 if o1 < 0 else o1 / 100),
-        1 + (-100 / o2 if o2 < 0 else o2 / 100),
-    )
-
-
-def EV(w1: float, w2: float, or1: float, or2: float) -> tuple[float, float]:
-    return (w1 * (or1 - 1) - w2, w2 * (or2 - 1) - w1)
-
-
-def f_star(
-    ev1: float, ev2: float, or1: float, or2: float, kelly_fraction: float
-) -> tuple[float, float]:
-    return (ev1 / (or1 - 1) * kelly_fraction, ev2 / (or2 - 1) * kelly_fraction)
-
-
-def betAmount(f_star: float, bankroll: float) -> float:
-    return np.clip(f_star, 0, 0.05) * bankroll
-
-
-def loadOdds() -> list[tuple[str, str, int, int]]:
-
-    with open("odds.tsv", "r") as file:
-        odds = [
-            tuple(line.strip().split("\t"))
-            for line in file.readlines()
-            if line.strip() and not line.startswith("#")
-        ]
-        odds = [(t1, t2, int(o1), int(o2)) for t1, t2, o1, o2 in odds]
-
-    return odds
-
-
-def runAnalysis(odds: list[tuple[str, str, int, int]], sport: Sport) -> list[dict]:
-
-    analyses = []
-
-    for g in odds:
-        t1, t2, o1, o2 = g
-
-        if not sport.teams[t1]:
-            print(f"Skipping {t1} - team not found")
-            continue
-        if not sport.teams[t2]:
-            print(f"Skipping {t2} - team not found")
-            continue
-
-        game = Game(t1=t1, t2=t2, h1=False, h2=True, p1=None, p2=None, sport=sport)
-        game.w()
-
-        analysis: dict = {"game": game}
-
-        analysis["odds"] = (o1, o2)
-        analysis["ip"] = ip(o1, o2)
-        analysis["OR"] = OR(o1, o2)
-        analysis["EV"] = EV(game.w1, game.w2, analysis["OR"][0], analysis["OR"][1])
-        analysis["f*"] = f_star(
-            analysis["EV"][0],
-            analysis["EV"][1],
-            analysis["OR"][0],
-            analysis["OR"][1],
-            kelly_fraction,
-        )
-
-        analyses.append(analysis)
-
-    for a in sorted(analyses, key=lambda x: max(x["f*"]), reverse=True):
-        warning = (a["EV"][0] > 0 and a["odds"][0] > 0) or (
-            a["EV"][1] > 0 and a["odds"][1] > 0
-        )
-        if a["EV"][0] > 0.2:
-            if a["f*"][0] * bankroll >= 0.1:
-                print(
-                    f"Bet ${betAmount(a['f*'][0], bankroll):0.2f} ({a['EV'][0]:0.2f}, {a['game'].w1:0.0%}) on {a['game'].t1} (@ {a['game'].t2}) {'\uEA6C' if warning else ''}"
-                )
-        elif a["EV"][0] > 0.5 and a["game"].w1 > stabilizer:
-            print(
-                f"Bet ${0.01 * bankroll:0.2f} ({a['EV'][0]:0.2f}, {a['game'].w1:0.0%}) on {a['game'].t1} (@ {a['game'].t2}) {'\uEA6C' if warning else ''} \uEAA5"
-            )
-        if a["EV"][1] > 0.2:
-            if a["f*"][1] * bankroll >= 0.1:
-                print(
-                    f"Bet ${betAmount(a['f*'][1], bankroll):0.2f} ({a['EV'][1]:0.2f}, {a['game'].w2:0.0%}) on {a['game'].t2} (v {a['game'].t1}) {'\uEA6C' if warning else ''}"
-                )
-        elif a["EV"][1] > 0.5 and a["game"].w2 >= stabilizer:
-            print(
-                f"Bet ${0.01 * bankroll:0.2f} ({a['EV'][1]:0.2f}, {a['game'].w2:0.0%}) on {a['game'].t2} (v {a['game'].t1}) {'\uEA6C' if warning else ''} \uEAA5"
-            )
-
-    return analyses
 
 
 def runParlays(analyses: list[dict]) -> list[dict]:
@@ -189,3 +70,131 @@ def runParlays(analyses: list[dict]) -> list[dict]:
             )
 
     return parlays
+
+
+class BettingEngine:
+    def __init__(self, sportCode: SportCode, year: int) -> None:
+        self.sport = loadSport(sportCode, year)
+        self.loadConfig()
+        self.loadOdds()
+        self.analyze()
+
+    def loadConfig(self):
+
+        load_dotenv(override=True)
+
+        self.kelly_fraction = float(os.getenv("f") or 0.25)
+        self.bankroll = float(os.getenv("BANKROLL") or 0)
+        self.stabilizer = float(os.getenv("STABILIZER") or 1.0)
+
+    def loadOdds(self):
+
+        with open("odds.tsv", "r") as file:
+            odds = [
+                tuple(line.strip().split("\t"))
+                for line in file.readlines()
+                if line.strip() and not line.startswith("#")
+            ]
+            odds = [
+                Odds(
+                    t1,
+                    t2,
+                    int(o1),
+                    int(o2),
+                    sport=self.sport,
+                    kelly_fraction=self.kelly_fraction,
+                    bankroll=self.bankroll,
+                    stabilizer=self.stabilizer,
+                )
+                for t1, t2, o1, o2 in odds
+            ]
+
+        self.odds = odds
+
+    def analyze(self) -> None:
+        self.analyses = [odds.analyze() for odds in self.odds]
+        for a in sorted(self.odds, key=lambda x: max(x.f_star), reverse=True):
+            print(a)
+
+
+class Odds:
+    def __init__(
+        self,
+        t1: str,
+        t2: str,
+        o1: int,
+        o2: int,
+        sport: Sport,
+        kelly_fraction: float,
+        bankroll: float,
+        stabilizer: float,
+    ):
+        self.t1 = t1
+        self.t2 = t2
+        self.o1 = o1
+        self.o2 = o2
+        self.sport = sport
+        self.kelly_fraction = kelly_fraction
+        self.bankroll = bankroll
+        self.stabilizer = stabilizer
+
+    def calcIP(self) -> tuple[float, float]:
+        return (
+            -self.o1 / (100 - self.o1) if self.o1 < 0 else 100 / (self.o1 + 100),
+            -self.o2 / (100 - self.o2) if self.o2 < 0 else 100 / (self.o2 + 100),
+        )
+
+    def calcOR(self) -> tuple[float, float]:
+        return (
+            1 + (-100 / self.o1 if self.o1 < 0 else self.o1 / 100),
+            1 + (-100 / self.o2 if self.o2 < 0 else self.o2 / 100),
+        )
+
+    def calcEV(self) -> tuple[float, float]:
+        w1 = self.game.w1
+        w2 = self.game.w2
+        return (w1 * (self.OR[0] - 1) - w2, w2 * (self.OR[1] - 1) - w1)
+
+    def calcFStar(self) -> tuple[float, float]:
+        return (
+            self.EV[0] / (self.OR[0] - 1) * self.kelly_fraction,
+            self.EV[1] / (self.OR[1] - 1) * self.kelly_fraction,
+        )
+
+    def analyze(self):
+        self.game = Game(
+            t1=self.t1,
+            t2=self.t2,
+            h1=False,
+            h2=True,
+            p1=None,
+            p2=None,
+            sport=self.sport,
+        )
+        self.game.w()
+        self.ip = self.calcIP()
+        self.OR = self.calcOR()
+        self.EV = self.calcEV()
+        self.f_star = self.calcFStar()
+
+        self.warning = (self.EV[0] > 0 and self.o1 > 0) or (
+            self.EV[1] > 0 and self.o2 > 0
+        )
+
+        return
+
+    def betAmount(self) -> tuple[float, float]:
+        return np.clip(self.f_star, 0, 0.05, dtype=float) * self.bankroll
+
+    def __str__(self) -> str:
+        if self.EV[0] > 0.2:
+            if self.f_star[0] * self.bankroll >= 0.1:
+                return f"Bet ${self.betAmount()[0]:0.2f} ({self.EV[0]:0.2f}, {self.game.w1:0.0%}) on {self.game.t1} (@ {self.game.t2}) {'\uEA6C' if self.warning else ''}"
+            elif self.EV[0] > 0.5 and self.game.w1 >= self.stabilizer:
+                return f"Bet ${0.01 * self.bankroll:0.2f} ({self.EV[0]:0.2f}, {self.game.w1:0.0%}) on {self.game.t1} (@ {self.game.t2}) {'\uEA6C' if self.warning else ''} \uEAA5"
+            if self.EV[1] > 0.2:
+                if self.f_star[1] * self.bankroll >= 0.1:
+                    return f"Bet ${self.betAmount()[1]:0.2f} ({self.EV[1]:0.2f}, {self.game.w2:0.0%}) on {self.game.t2} (v {self.game.t1}) {'\uEA6C' if self.warning else ''}"
+            elif self.EV[1] > 0.5 and self.game.w2 >= self.stabilizer:
+                return f"Bet ${0.01 * self.bankroll:0.2f} ({self.EV[1]:0.2f}, {self.game.w2:0.0%}) on {self.game.t2} (v {self.game.t1}) {'\uEA6C' if self.warning else ''} \uEAA5"
+        return "\ueab8"
