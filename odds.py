@@ -7,71 +7,6 @@ from predictor import SportCode, loadSport
 import numpy as np
 
 
-def runParlays(analyses: list[dict]) -> list[dict]:
-
-    parlays = []
-
-    for i in range(len(analyses)):
-        for j in range(i + 1, len(analyses)):
-            parlays.append({"games": (analyses[i], analyses[j])})
-
-    for i in range(len(analyses)):
-        for j in range(i + 1, len(analyses)):
-            for k in range(j + 1, len(analyses)):
-                parlays.append({"games": (analyses[i], analyses[j], analyses[k])})
-
-    for i in range(len(analyses)):
-        for j in range(i + 1, len(analyses)):
-            for k in range(j + 1, len(analyses)):
-                for l in range(k + 1, len(analyses)):
-                    parlays.append(
-                        {"games": (analyses[i], analyses[j], analyses[k], analyses[l])}
-                    )
-
-    for p in parlays:
-        tp = []
-        tip = []
-        tev = []
-        tor = []
-        pick = []
-        skip = False
-        for g in p["games"]:
-            if g["EV"][0] > 0:
-                pick.append(0)
-            elif g["EV"][1] > 0:
-                pick.append(1)
-            else:
-                skip = True
-                continue
-            tp.append(g["game"].w1 if pick[-1] == 0 else g["game"].w2)
-            tip.append(g["ip"][pick[-1]])
-            tev.append(g["EV"][pick[-1]])
-            tor.append(g["OR"][pick[-1]])
-        if not skip:
-            p.update({"tp": prod(tp)})
-            p.update({"tip": prod(tip)})
-            p.update({"tev": sum(tev)})
-            p.update({"tor": prod(tor)})
-            p.update({"pick": pick})
-            p.update({"f*": (p["tev"] / (p["tor"] - 1)) * kelly_fraction})
-
-    parlays = [p for p in parlays if "tp" in p]
-
-    for p in sorted(parlays, key=lambda x: x["tev"] * sqrt(x["tp"]), reverse=True)[:10]:
-        if p["tev"] <= 1.0:
-            continue
-        picks = [
-            g["game"].t1 if pick == 0 else g["game"].t2
-            for g, pick in zip(p["games"], p["pick"])
-        ]
-        if p["f*"] * bankroll >= 0.1:
-            print(
-                f"Bet ${betAmount(p['f*'], bankroll):0.2f} ({p['tev']:0.2f}, {p['tp']:0.0%}) {' + '.join(picks)}"
-            )
-
-    return parlays
-
-
 class BettingEngine:
     def __init__(self, sportCode: SportCode, year: int) -> None:
         self.sport = loadSport(sportCode, year)
@@ -115,6 +50,60 @@ class BettingEngine:
         self.analyses = [odds.analyze() for odds in self.odds]
         for a in sorted(self.odds, key=lambda x: max(x.f_star), reverse=True):
             print(a)
+
+    def analyzeParlays(self) -> None:
+        self.parlays: list[Parlay] = []
+
+        for i in range(len(self.analyses)):
+            for j in range(i + 1, len(self.analyses)):
+                self.parlays.append(
+                    Parlay(
+                        games=[self.analyses[i], self.analyses[j]],
+                        sport=self.sport,
+                        kelly_fraction=self.kelly_fraction,
+                        bankroll=self.bankroll,
+                    )
+                )
+
+        for i in range(len(self.analyses)):
+            for j in range(i + 1, len(self.analyses)):
+                for k in range(j + 1, len(self.analyses)):
+                    self.parlays.append(
+                        Parlay(
+                            games=[
+                                self.analyses[i],
+                                self.analyses[j],
+                                self.analyses[k],
+                            ],
+                            sport=self.sport,
+                            kelly_fraction=self.kelly_fraction,
+                            bankroll=self.bankroll,
+                        )
+                    )
+
+        for i in range(len(self.analyses)):
+            for j in range(i + 1, len(self.analyses)):
+                for k in range(j + 1, len(self.analyses)):
+                    for l in range(k + 1, len(self.analyses)):
+                        self.parlays.append(
+                            Parlay(
+                                games=[
+                                    self.analyses[i],
+                                    self.analyses[j],
+                                    self.analyses[k],
+                                    self.analyses[l],
+                                ],
+                                sport=self.sport,
+                                kelly_fraction=self.kelly_fraction,
+                                bankroll=self.bankroll,
+                            )
+                        )
+
+        for p in self.parlays:
+            p.analyze()
+
+        for p in sorted(self.parlays, key=lambda x: x.tev * sqrt(x.tp), reverse=True):
+            print(p)
 
 
 class Odds:
@@ -181,7 +170,7 @@ class Odds:
             self.EV[1] > 0 and self.o2 > 0
         )
 
-        return
+        return self
 
     def betAmount(self) -> tuple[float, float]:
         return np.clip(self.f_star, 0, 0.05, dtype=float) * self.bankroll
@@ -197,4 +186,64 @@ class Odds:
                     return f"Bet ${self.betAmount()[1]:0.2f} ({self.EV[1]:0.2f}, {self.game.w2:0.0%}) on {self.game.t2} (v {self.game.t1}) {'\uEA6C' if self.warning else ''}"
             elif self.EV[1] > 0.5 and self.game.w2 >= self.stabilizer:
                 return f"Bet ${0.01 * self.bankroll:0.2f} ({self.EV[1]:0.2f}, {self.game.w2:0.0%}) on {self.game.t2} (v {self.game.t1}) {'\uEA6C' if self.warning else ''} \uEAA5"
+        return "\ueab8"
+
+
+class Parlay:
+    def __init__(
+        self, games: list[Odds], sport: Sport, kelly_fraction: float, bankroll: float
+    ) -> None:
+        self.games = games
+        self.sport = sport
+        self.kelly_fraction = kelly_fraction
+        self.bankroll = bankroll
+
+    def calcFStar(self):
+        return self.tev / (self.tor - 1) * self.kelly_fraction
+
+    def betAmount(self):
+        return np.clip(self.f_star, 0, 0.05, dtype=float) * self.bankroll
+
+    def analyze(self):
+        tp = []
+        tip = []
+        tev = []
+        tor = []
+        self.pick = []
+        self.skip = False
+
+        for g in self.games:
+            if g.EV[0] > 0:
+                self.pick.append(0)
+            elif g.EV[1] > 0:
+                self.pick.append(1)
+            else:
+                self.skip = True
+                continue
+            tp.append(g.game.w1 if self.pick[-1] == 0 else g.game.w2)
+            tip.append(g.ip[self.pick[-1]])
+            tev.append(g.EV[self.pick[-1]])
+            tor.append(g.OR[self.pick[-1]])
+        if not self.skip:
+            self.tp = prod(tp)
+            self.tip = prod(tip)
+            self.tev = sum(tev)
+            self.tor = prod(tor)
+            self.f_star = self.calcFStar()
+        else:
+            self.tp = 0.0
+            self.tip = 0.0
+            self.tev = 0.0
+            self.tor = 0.0
+            self.f_star = 0.0
+
+    def __str__(self) -> str:
+        if self.tev <= 1.0 or self.skip:
+            return "\ueab8"
+        picks = [
+            g.game.t1 if pick == 0 else g.game.t2
+            for g, pick in zip(self.games, self.pick)
+        ]
+        if self.f_star * self.bankroll >= 0.1:
+            return f"Bet ${self.betAmount():0.2f} ({self.tev:0.2f}, {self.tp:0.0%}) {' + '.join(picks)}"
         return "\ueab8"
