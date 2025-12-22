@@ -13,6 +13,7 @@ class BettingEngine:
         self.loadConfig()
         self.loadOdds()
         self.analyze()
+        self.analyzeParlays()
 
     def loadConfig(self):
 
