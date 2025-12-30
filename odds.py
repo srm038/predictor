@@ -50,7 +50,8 @@ class BettingEngine:
     def analyze(self) -> None:
         self.analyses = [odds.analyze() for odds in self.odds]
         for a in sorted(self.odds, key=lambda x: max(x.f_star), reverse=True):
-            print(a)
+            if len(str(a)) > 1:
+                print(a)
 
     def analyzeParlays(self) -> None:
         self.parlays: list[Parlay] = []
@@ -104,7 +105,8 @@ class BettingEngine:
             p.analyze()
 
         for p in sorted(self.parlays, key=lambda x: x.tev * sqrt(x.tp), reverse=True):
-            print(p)
+            if len(str(p)) > 1:
+                print(p)
 
 
 class Odds:
