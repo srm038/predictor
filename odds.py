@@ -14,6 +14,7 @@ class BettingEngine:
         self.loadOdds()
         self.analyze()
         self.analyzeParlays()
+        self.recommend()
 
     def loadConfig(self):
 
@@ -49,15 +50,16 @@ class BettingEngine:
 
     def analyze(self) -> None:
         self.analyses = [odds.analyze() for odds in self.odds]
-        for a in sorted(self.odds, key=lambda x: max(x.f_star), reverse=True):
-            if len(str(a)) > 1:
-                print(a)
 
     def analyzeParlays(self) -> None:
         self.parlays: list[Parlay] = []
 
         for i in range(len(self.analyses)):
+            if self.analyses[i].shouldSkip():
+                continue
             for j in range(i + 1, len(self.analyses)):
+                if self.analyses[j].shouldSkip():
+                    continue
                 self.parlays.append(
                     Parlay(
                         games=[self.analyses[i], self.analyses[j]],
@@ -68,8 +70,14 @@ class BettingEngine:
                 )
 
         for i in range(len(self.analyses)):
+            if self.analyses[i].shouldSkip():
+                continue
             for j in range(i + 1, len(self.analyses)):
+                if self.analyses[j].shouldSkip():
+                    continue
                 for k in range(j + 1, len(self.analyses)):
+                    if self.analyses[k].shouldSkip():
+                        continue
                     self.parlays.append(
                         Parlay(
                             games=[
@@ -84,9 +92,17 @@ class BettingEngine:
                     )
 
         for i in range(len(self.analyses)):
+            if self.analyses[i].shouldSkip():
+                continue
             for j in range(i + 1, len(self.analyses)):
+                if self.analyses[j].shouldSkip():
+                    continue
                 for k in range(j + 1, len(self.analyses)):
+                    if self.analyses[k].shouldSkip():
+                        continue
                     for l in range(k + 1, len(self.analyses)):
+                        if self.analyses[l].shouldSkip():
+                            continue
                         self.parlays.append(
                             Parlay(
                                 games=[
@@ -104,9 +120,44 @@ class BettingEngine:
         for p in self.parlays:
             p.analyze()
 
-        for p in sorted(self.parlays, key=lambda x: x.tev * sqrt(x.tp), reverse=True):
-            if len(str(p)) > 1:
-                print(p)
+    def recommend(self):
+        target = 5
+
+        four_leg_parlays = [
+            p
+            for p in self.parlays
+            if len(p.games) == 4 and not getattr(p, "skip", False)
+        ]
+        best_parlay = max(
+            (p for p in four_leg_parlays if len(str(p)) > 1),
+            key=lambda p: getattr(p, "tp", 0.0),
+            default=None,
+        )
+        if best_parlay and len(str(best_parlay)) > 1:
+            print(best_parlay)
+
+        sorted_analyses = sorted(
+            self.analyses, key=lambda a: max(a.game.w1, a.game.w2), reverse=True
+        )
+
+        selected = []
+
+        for a in sorted_analyses:
+            if len(selected) >= target:
+                break
+            if not a.shouldSkip():
+                selected.append(a)
+
+        for a in sorted_analyses:
+            if len(selected) >= target:
+                break
+            if a in selected:
+                continue
+            if not a.shouldSkip():
+                selected.append(a)
+
+        for s in selected:
+            print(s)
 
 
 class Odds:
@@ -129,6 +180,7 @@ class Odds:
         self.kelly_fraction = kelly_fraction
         self.bankroll = bankroll
         self.stabilizer = stabilizer
+        self.skip = False
 
     def calcIP(self) -> tuple[float, float]:
         return (
@@ -152,6 +204,26 @@ class Odds:
             self.EV[0] / (self.OR[0] - 1) * self.kelly_fraction,
             self.EV[1] / (self.OR[1] - 1) * self.kelly_fraction,
         )
+
+    def pick(self):
+        if self.EV[0] > self.EV[1]:
+            return 0
+        else:
+            return 1
+
+    def shouldSkip(self):
+        if self.skip:
+            return self.skip
+        if self.EV[0] <= 0 and self.EV[1] <= 0:
+            self.skip = True
+            return self.skip
+        if self.EV[self.pick()] <= 0.2 or 4.0 >= self.OR[self.pick()] >= 1.20:
+            self.skip = True
+            return self.skip
+        if self.f_star[self.pick()] * self.bankroll < 0.1:
+            self.skip = True
+            return self.skip
+        return False
 
     def analyze(self):
         self.game = Game(
@@ -179,16 +251,11 @@ class Odds:
         return np.clip(self.f_star, 0, 0.05, dtype=float) * self.bankroll
 
     def __str__(self) -> str:
-        if self.EV[0] > 0.2:
-            if self.f_star[0] * self.bankroll >= 0.1:
+        if not self.shouldSkip():
+            if self.pick() == 0:
                 return f"Bet ${self.betAmount()[0]:0.2f} ({self.EV[0]:0.2f}, {self.game.w1:0.0%}) on {self.game.t1} (@ {self.game.t2}) {'\uEA6C' if self.warning else ''}"
-            elif self.EV[0] > 0.5 and self.game.w1 >= self.stabilizer:
-                return f"Bet ${0.01 * self.bankroll:0.2f} ({self.EV[0]:0.2f}, {self.game.w1:0.0%}) on {self.game.t1} (@ {self.game.t2}) {'\uEA6C' if self.warning else ''} \uEAA5"
-            if self.EV[1] > 0.2:
-                if self.f_star[1] * self.bankroll >= 0.1:
-                    return f"Bet ${self.betAmount()[1]:0.2f} ({self.EV[1]:0.2f}, {self.game.w2:0.0%}) on {self.game.t2} (v {self.game.t1}) {'\uEA6C' if self.warning else ''}"
-            elif self.EV[1] > 0.5 and self.game.w2 >= self.stabilizer:
-                return f"Bet ${0.01 * self.bankroll:0.2f} ({self.EV[1]:0.2f}, {self.game.w2:0.0%}) on {self.game.t2} (v {self.game.t1}) {'\uEA6C' if self.warning else ''} \uEAA5"
+            else:
+                return f"Bet ${self.betAmount()[1]:0.2f} ({self.EV[1]:0.2f}, {self.game.w2:0.0%}) on {self.game.t2} (@ {self.game.t1}) {'\uEA6C' if self.warning else ''}"
         return "\ueab8"
 
 
@@ -206,6 +273,13 @@ class Parlay:
 
     def betAmount(self):
         return np.clip(self.f_star, 0, 0.05, dtype=float) * self.bankroll
+
+    def shouldSkip(self):
+        if self.skip:
+            return self.skip
+        if self.tev <= 1.0 or self.f_star * self.bankroll >= 0.1:
+            self.skip = True
+            return self.skip
 
     def analyze(self):
         tp = []
@@ -241,12 +315,10 @@ class Parlay:
             self.f_star = 0.0
 
     def __str__(self) -> str:
-        if self.tev <= 1.0 or self.skip:
-            return "\ueab8"
-        picks = [
-            g.game.t1 if pick == 0 else g.game.t2
-            for g, pick in zip(self.games, self.pick)
-        ]
-        if self.f_star * self.bankroll >= 0.1:
+        if not self.shouldSkip():
+            picks = [
+                g.game.t1 if pick == 0 else g.game.t2
+                for g, pick in zip(self.games, self.pick)
+            ]
             return f"Bet ${self.betAmount():0.2f} ({self.tev:0.2f}, {self.tp:0.0%}) {' + '.join(picks)}"
         return "\ueab8"
