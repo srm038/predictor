@@ -11,6 +11,9 @@ import requests
 from bs4 import BeautifulSoup
 
 
+Accuracy = tuple[int, int, float, float]
+
+
 filepath = rf"{os.getcwd()}\data"
 
 
@@ -89,7 +92,7 @@ def avg(x):
         return s / n
 
 
-def brier(accuracies: list[tuple[int, int, float]], **kwargs) -> dict[str, float]:
+def brier(accuracies: list[Accuracy], **kwargs) -> dict[str, float]:
     if not accuracies:
         return {"rel": 0.0, "res": 0.0, "unc": 0.0}
 
@@ -131,7 +134,7 @@ def platt_scale(f: float, a: float, b: float) -> float:
     return 1 / (1 + np.exp(-(a * f + b)))
 
 
-def platt_scaling(accuracies: list[tuple[int, int, float]]) -> tuple[float, float]:
+def platt_scaling(accuracies: list[Accuracy]) -> tuple[float, float]:
     x = np.array([np.clip(i[2], 0.01, 0.99) for i in accuracies]).reshape(-1, 1)
     y = np.array([i[1] for i in accuracies]).reshape(-1, 1).ravel()
     platt_scaler = LogisticRegression(penalty="l2", C=1000.0, solver="liblinear")

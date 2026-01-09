@@ -40,6 +40,9 @@ class Game:
         self.platt = (0.0, 0.0)
         self.sport = sport
 
+        self.spread1 = 0
+        self.spread2 = 0
+
         self.r1: int | Literal[""]
         self.r2: int | Literal[""]
         self.badness: float | Literal[""]
@@ -76,13 +79,9 @@ class Game:
             ):
                 self.w1 = 1
                 self.w2 = 0
-                self.spread1 = ""
-                self.spread2 = ""
             else:
                 self.w1 = 0
                 self.w2 = 1
-                self.spread1 = ""
-                self.spread2 = ""
             self.v1 = self.wvar(self.p1, self.p2, self.w1)
             self.v2 = self.wvar(self.p2, self.p1, self.w2)
             return
@@ -94,13 +93,9 @@ class Game:
             ):
                 self.w1 = 0
                 self.w2 = 1
-                self.spread1 = ""
-                self.spread2 = ""
             else:
                 self.w1 = 1
                 self.w2 = 0
-                self.spread1 = ""
-                self.spread2 = ""
             self.v1 = self.wvar(self.p1, self.p2, self.w1)
             self.v2 = self.wvar(self.p2, self.p1, self.w2)
             return

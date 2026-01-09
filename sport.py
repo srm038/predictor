@@ -2,7 +2,7 @@ import pickle
 import math
 from game import Game, Games
 from team import Team, Teams
-from utils import log, avg, brier, platt_scaling, filepath
+from utils import log, avg, brier, platt_scaling, filepath, Accuracy
 from operator import itemgetter
 import numpy as np
 import csv
@@ -48,7 +48,7 @@ class Sport:
         self.url = url
         self.platt = (0, 0)
         self.accuracy = 0.0
-        self.rawAccuracy: list[tuple[int, int, float]] = []
+        self.rawAccuracy: list[Accuracy] = []
         self.brier = 1.0
         self.dayzero = datetime(int(y), 1, 1)
 
@@ -1142,7 +1142,7 @@ class Sport:
 
         with open(self.persistf, "rb") as p:
             (self.teams, self.games) = pickle.load(p)
-        rawAccuracy: list[tuple[int, int, float]] = []
+        rawAccuracy: list[tuple[int, int, float, float]] = []
 
         begin = self.findFirstFullWeek()
 
@@ -1198,11 +1198,12 @@ class Sport:
 
                 m = (orig_p1 or 0) - (orig_p2 or 0)
                 outcome = int((a > 0.5 and m > 0) or (a < 0.5 and m < 0))
+                mae = abs(g.spread2 - m)
 
                 if row:
-                    rawAccuracy.append((outcome, int(m > 0), a))
+                    rawAccuracy.append((outcome, int(m > 0), a, mae))
                 else:
-                    rawAccuracy.append((outcome, int(m < 0), 1 - a))
+                    rawAccuracy.append((outcome, int(m < 0), 1 - a, mae))
                 row = 1 - row
 
                 g.p1, g.p2 = orig_p1, orig_p2
@@ -1210,13 +1211,15 @@ class Sport:
             self.games = orig_games
             self.teams = orig_teams
 
-            print(f"{w}, {avg([i[0] for i in rawAccuracy]):0.4f}")
+            print(
+                f"{w}, {avg([i[0] for i in rawAccuracy]):0.4f}, {avg([i[3] for i in rawAccuracy]):0.4f}"
+            )
 
         open(self.accraw, "w").close()
         with open(self.accraw, "a") as b:
             for i in range(len(rawAccuracy)):
                 b.write(
-                    f"{rawAccuracy[i][0]},{rawAccuracy[i][1]},{rawAccuracy[i][2]:0.2f}\n"
+                    f"{rawAccuracy[i][0]},{rawAccuracy[i][1]},{rawAccuracy[i][2]:0.2f},{rawAccuracy[i][3]}\n"
                 )
 
         self.rawAccuracy = rawAccuracy
