@@ -1,10 +1,11 @@
 import os
 from dotenv import load_dotenv
-from math import prod, sqrt
+from math import prod
 from game import Game
 from sport import Sport
 from predictor import SportCode, loadSport
 import numpy as np
+import scipy.stats as stats
 
 
 class BettingEngine:
@@ -38,12 +39,14 @@ class BettingEngine:
                     t2,
                     int(o1),
                     int(o2),
+                    float(spread),
+                    (int(spreadOdds1), int(spreadOdds2)),
                     sport=self.sport,
                     kelly_fraction=self.kelly_fraction,
                     bankroll=self.bankroll,
                     stabilizer=self.stabilizer,
                 )
-                for t1, t2, o1, o2 in odds
+                for t1, t2, o1, o2, spread, _, spreadOdds1, spreadOdds2 in odds
             ]
 
         self.odds = odds
@@ -159,6 +162,17 @@ class BettingEngine:
         for s in selected:
             print(s)
 
+        for o in sorted(self.odds, key=lambda o: max(o.spreadEV), reverse=True)[:10]:
+            if o.spreadEV[0] > 0.2 or o.spreadEV[1] > 0.2:
+                if o.spreadEV[0] > o.spreadEV[1]:
+                    print(
+                        f"Bet ${self.bankroll / 20:0.2f} on {o.t1} at {o.spread:+} ({o.spreadEV[0]:0.2f})"
+                    )
+                else:
+                    print(
+                        f"Bet ${self.bankroll / 20:0.2f} on {o.t2} at {-o.spread:+} ({o.spreadEV[1]:0.2f})"
+                    )
+
 
 class Odds:
     def __init__(
@@ -167,6 +181,8 @@ class Odds:
         t2: str,
         o1: int,
         o2: int,
+        spread: float,
+        spreadOdds: tuple[int, int],
         sport: Sport,
         kelly_fraction: float,
         bankroll: float,
@@ -176,6 +192,8 @@ class Odds:
         self.t2 = t2
         self.o1 = o1
         self.o2 = o2
+        self.spread = spread or 0.0
+        self.spreadOdds = spreadOdds or (0, 0)
         self.sport = sport
         self.kelly_fraction = kelly_fraction
         self.bankroll = bankroll
@@ -188,7 +206,8 @@ class Odds:
             -self.o2 / (100 - self.o2) if self.o2 < 0 else 100 / (self.o2 + 100),
         )
 
-    def calcOR(self) -> tuple[float, float]:
+    def calcDO(self) -> tuple[float, float]:
+        # return decimal odds (DO)
         return (
             1 + (-100 / self.o1 if self.o1 < 0 else self.o1 / 100),
             1 + (-100 / self.o2 if self.o2 < 0 else self.o2 / 100),
@@ -197,12 +216,37 @@ class Odds:
     def calcEV(self) -> tuple[float, float]:
         w1 = self.game.w1
         w2 = self.game.w2
-        return (w1 * (self.OR[0] - 1) - w2, w2 * (self.OR[1] - 1) - w1)
+        # EV per $1 stake using net odds `OR` (b): p*b - q
+        return (w1 * self.OR[0] - w2, w2 * self.OR[1] - w1)
 
     def calcFStar(self) -> tuple[float, float]:
+        # Use net odds (OR = DO - 1) as 'b' in Kelly formula
         return (
-            self.EV[0] / (self.OR[0] - 1) * self.kelly_fraction,
-            self.EV[1] / (self.OR[1] - 1) * self.kelly_fraction,
+            (self.EV[0] / self.OR[0] * self.kelly_fraction) if self.OR[0] > 0 else 0.0,
+            (self.EV[1] / self.OR[1] * self.kelly_fraction) if self.OR[1] > 0 else 0.0,
+        )
+
+    def calcSw(self) -> float:
+        gap = abs(self.spread - self.game.spread1)
+        Sw = float(stats.norm.cdf(gap / 11))
+        return Sw
+
+    def calcSpreadEV(self) -> tuple[float, float]:
+        sor = (
+            (
+                100 / abs(self.spreadOdds[0])
+                if self.spreadOdds[0] < 0
+                else self.spreadOdds[0] / 100
+            ),
+            (
+                100 / abs(self.spreadOdds[1])
+                if self.spreadOdds[1] < 0
+                else self.spreadOdds[1] / 100
+            ),
+        )
+        return (
+            self.Sw * sor[0] - (1 - self.Sw),
+            self.Sw * sor[1] - (1 - self.Sw),
         )
 
     def pick(self):
@@ -217,7 +261,11 @@ class Odds:
         if self.EV[0] <= 0 and self.EV[1] <= 0:
             self.skip = True
             return self.skip
-        if self.EV[self.pick()] <= 0.2 or 4.0 >= self.OR[self.pick()] >= 1.20:
+        if (
+            self.EV[self.pick()] <= 0.2
+            or self.OR[self.pick()] >= 4.00
+            or self.OR[self.pick()] <= 1.25
+        ):
             self.skip = True
             return self.skip
         if self.f_star[self.pick()] * self.bankroll < 0.1:
@@ -237,9 +285,13 @@ class Odds:
         )
         self.game.w()
         self.ip = self.calcIP()
-        self.OR = self.calcOR()
+        # calcDO returns decimal odds (DO); expose both DO and net-odds OR = DO - 1
+        self.DO = self.calcDO()
+        self.OR = (self.DO[0] - 1, self.DO[1] - 1)
         self.EV = self.calcEV()
         self.f_star = self.calcFStar()
+        self.Sw = self.calcSw()
+        self.spreadEV = self.calcSpreadEV()
 
         self.warning = (self.EV[0] > 0 and self.o1 > 0) or (
             self.EV[1] > 0 and self.o2 > 0
@@ -269,7 +321,10 @@ class Parlay:
         self.bankroll = bankroll
 
     def calcFStar(self):
-        return self.tev / (self.tor - 1) * self.kelly_fraction
+        # use net parlay odds (OR = DO - 1)
+        if getattr(self, "OR", 0) <= 0:
+            return 0.0
+        return self.tev / self.OR * self.kelly_fraction
 
     def betAmount(self):
         return np.clip(self.f_star, 0, 0.05, dtype=float) * self.bankroll
@@ -285,7 +340,7 @@ class Parlay:
         tp = []
         tip = []
         tev = []
-        tor = []
+        do_list = []
         self.pick = []
         self.skip = False
 
@@ -300,18 +355,25 @@ class Parlay:
             tp.append(g.game.w1 if self.pick[-1] == 0 else g.game.w2)
             tip.append(g.ip[self.pick[-1]])
             tev.append(g.EV[self.pick[-1]])
-            tor.append(g.OR[self.pick[-1]])
+            # do_list is product of decimal odds (DO)
+            do_list.append(g.DO[self.pick[-1]])
         if not self.skip:
             self.tp = prod(tp)
             self.tip = prod(tip)
-            self.tev = sum(tev)
-            self.tor = prod(tor)
+            # parlay total probability (product of individual win probs)
+            # DO: product of decimal odds; OR (net) = DO - 1
+            self.DO = prod(do_list)
+            self.OR = self.DO - 1
+            self.tp = prod(tp)
+            # parlay expected value for $1 stake: P_all * (DO - 1) - (1 - P_all) = P_all*DO - 1
+            self.tev = (self.tp * self.DO) - 1
             self.f_star = self.calcFStar()
         else:
             self.tp = 0.0
             self.tip = 0.0
             self.tev = 0.0
-            self.tor = 0.0
+            self.DO = 0.0
+            self.OR = 0.0
             self.f_star = 0.0
 
     def __str__(self) -> str:
