@@ -150,7 +150,7 @@ class Game:
                     self.pfoaa = (tpfh2 - (self.p2 or 0)) / (n2 - 1)
                     self.paoaa = (tpah2 - (self.p1 or 0)) / (n2 - 1)
 
-                (a, b, c) = getcoeff(
+                (ah, bh, ch) = getcoeff(
                     self.paoaa * (mo1 * self.paoaa + bo1 + mno1),
                     abs(mno1),
                     self.paoaa * (mo1 * self.paoaa + bo1),
@@ -159,7 +159,7 @@ class Game:
                     abs(mxo1),
                 )
 
-                (d, e, f) = getcoeff(
+                (dh, eh, fh) = getcoeff(
                     self.pfhaa * (md2 * self.pfhaa + bd2 + mnd2),
                     abs(mnd2),
                     self.pfhaa * (md2 * self.pfhaa + bd2),
@@ -168,9 +168,11 @@ class Game:
                     abs(mxd2),
                 )
 
-                (self.phl, self.phh) = getroots(a, b, c, d, e, f)
+                (self.phl, self.phh) = getroots(ah, bh, ch, dh, eh, fh)
+                if self.phh == self.phl:
+                    self.phh += 1
 
-                (a, b, c) = getcoeff(
+                (aa, ba, ca) = getcoeff(
                     self.pahaa * (mo2 * self.pahaa + bo2 + mno2),
                     abs(mno2),
                     self.pahaa * (mo2 * self.pahaa + bo2),
@@ -179,7 +181,7 @@ class Game:
                     abs(mxo2),
                 )
 
-                (d, e, f) = getcoeff(
+                (da, ea, fa) = getcoeff(
                     self.pfoaa * (md1 * self.pfoaa + bd1 + mnd1),
                     abs(mnd1),
                     self.pfoaa * (md1 * self.pfoaa + bd1),
@@ -188,7 +190,9 @@ class Game:
                     abs(mxd1),
                 )
 
-                (self.pal, self.pah) = getroots(a, b, c, d, e, f)
+                (self.pal, self.pah) = getroots(aa, ba, ca, da, ea, fa)
+                if self.pah == self.pal:
+                    self.pah += 1
 
         except:
             self.sport.log(f"Could not get roots for {self.t1} vs {self.t2}")
@@ -196,27 +200,21 @@ class Game:
             self.w2 = 0.5
             return
 
-        t = []
+        s = 0
+        total_weight = 0
 
         for i in range(self.phh - self.phl):
-            t.append([])
+            h = self.phl + i
             for j in range(self.pah - self.pal):
-                if (self.phl + i) > (self.pal + j):
-                    t[i].append(1)
-                elif (self.phl + i) == (self.pal + j):
-                    t[i].append(0.5)
-                elif (self.phl + i) < (self.pal + j):
-                    t[i].append(0)
+                a_score = self.pal + j
+                weight = gaussian(h, ah, bh, ch) * gaussian(a_score, aa, ba, ca)
+                total_weight += weight
+                if h > a_score:
+                    s += weight
+                elif h == a_score:
+                    s += 0.5 * weight
 
-        for i in range(self.phh - self.phl):
-            t[i] = sum(t[i])
-
-        s = sum(t)
-        if self.phh == self.phl:
-            self.phh += 1
-        if self.pah == self.pal:
-            self.pah += 1
-        self.w1 = s / ((self.phh - self.phl) * (self.pah - self.pal))
+        self.w1 = s / total_weight if total_weight > 0 else 0.5
 
         if self.h1 and not self.h2:
             if self.w1 + self.sport.ha < 1:

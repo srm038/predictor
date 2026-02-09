@@ -151,7 +151,7 @@ def gaussian(x, a, z, w):
 def getcoeff(
     x1: float, y1: float, x2: float, y2: float, x3: float, y3: float
 ) -> tuple[float, float, float]:
-    """Solves for quadratic coefficients"""
+    """Get the coefficients of the Gaussian curve fit"""
 
     if y1 > 1:
         raise ValueError(f"y1 > 1")
