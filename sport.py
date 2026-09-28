@@ -1,5 +1,6 @@
 import pickle
 import math
+from pathlib import Path
 from game import Game, Games
 from team import Team, Teams
 from utils import log, avg, brier, platt_scaling, filepath, Accuracy
@@ -61,23 +62,25 @@ class Sport:
         self.maxNameLen: int
         self.fmeas: float
 
-        self.dataraw = rf"{filepath}\{self.s}\{self.year}\raw.csv"
-        self.teamsraw = rf"{filepath}\{self.s}\{self.year}\teams.csv"
-        self.rankingraw = rf"{filepath}\{self.s}\{self.year}\rank.csv"
-        self.accraw = rf"{filepath}\{self.s}\{self.year}\acc.csv"
-        self.errraw = rf"{filepath}\{self.s}\{self.year}\err.csv"
-        self.playoffraw = rf"{filepath}\{self.s}\{self.year}\playoff.csv"
-        self.bayesconv = rf"{filepath}\{self.s}\{self.year}\bayes.csv"
-        self.bayesrank = rf"{filepath}\{self.s}\{self.year}\bayesrank.csv"
-        self.persistf = rf"{filepath}\{self.s}\{self.year}\persist.p"
-        self.allranksf = rf"{filepath}\{self.s}\{self.year}\all.p"
-        self.allwranksf = rf"{filepath}\{self.s}\{self.year}\all2.p"
-        self.powf = rf"{filepath}\{self.s}\{self.year}\pow50.p"
-        self.comprehensive = rf"{filepath}\{self.s}\{self.year}\allteams.csv"
-        self.weekly = rf"{filepath}\{self.s}\{self.year}\weekly.csv"
-        self.logfile = rf"{filepath}\{self.s}\{self.year}\log.txt"
-        self.gamesfile = rf"{filepath}\{self.s}\{self.year}\games.csv"
-        self.skinsfile = rf"{filepath}\{self.s}\{self.year}\skins.txt"
+        self.base = filepath / self.s / str(self.year)
+
+        self.dataraw = self.base / "raw.csv"
+        self.teamsraw = self.base / "teams.csv"
+        self.rankingraw = self.base / "rank.csv"
+        self.accraw = self.base / "acc.csv"
+        self.errraw = self.base / "err.csv"
+        self.playoffraw = self.base / "playoff.csv"
+        self.bayesconv = self.base / "bayes.csv"
+        self.bayesrank = self.base / "bayesrank.csv"
+        self.persistf = self.base / "persist.p"
+        self.allranksf = self.base / "all.p"
+        self.allwranksf = self.base / "all2.p"
+        self.powf = self.base / "pow50.p"
+        self.comprehensive = self.base / "allteams.csv"
+        self.weekly = self.base / "weekly.csv"
+        self.logfile = self.base / "log.txt"
+        self.gamesfile = self.base / "games.csv"
+        self.skinsfile = self.base / "skins.txt"
 
     def loadTeams(self):
         """Load teams from teamsraw file."""
@@ -177,9 +180,13 @@ class Sport:
                     else:
                         if self.s == "fcs" and (
                             s.t2
-                            in open(rf"{filepath}\fbs\\{self.year}\\teams.csv").read()
+                            in open(
+                                filepath / "fbs" / str(self.year) / "teams.csv"
+                            ).read()
                             or s.t1
-                            in open(rf"{filepath}\fbs\\{self.year}\\teams.csv").read()
+                            in open(
+                                filepath / "fbs" / str(self.year) / "teams.csv"
+                            ).read()
                         ):
                             soo0.append(-int(2 * len(self.teams)))
                         else:
@@ -191,9 +198,13 @@ class Sport:
                     else:
                         if self.s == "fcs" and (
                             s.t2
-                            in open(rf"{filepath}\fbs\\{self.year}\\teams.csv").read()
+                            in open(
+                                filepath / "fbs" / str(self.year) / "teams.csv"
+                            ).read()
                             or s.t1
-                            in open(rf"{filepath}\fbs\\{self.year}\\teams.csv").read()
+                            in open(
+                                filepath / "fbs" / str(self.year) / "teams.csv"
+                            ).read()
                         ):
                             soo1.append(-int(2 * len(self.teams)))
                         else:
@@ -318,11 +329,11 @@ class Sport:
                 self.allwranks[t][w + 1] = temp.index(team.wvara()) + 1
 
             with open(self.persistf, "rb") as p:
-                (self.teams, self.games) = pickle.load(p)
+                self.teams, self.games = pickle.load(p)
             w += 1
 
         with open(self.persistf, "rb") as p:
-            (self.teams, self.games) = pickle.load(p)
+            self.teams, self.games = pickle.load(p)
 
         with open(self.allwranksf, "wb") as a:
             pickle.dump(self.allwranks, a)
@@ -372,7 +383,7 @@ class Sport:
         try:
             if team := self.teams[0]:
                 team.wrank
-        except (AttributeError, UnboundLocalError):
+        except AttributeError, UnboundLocalError:
             print("Couldnt find a rank.")
 
         self.log("Ranking teams by FULL to date.....")
@@ -487,7 +498,7 @@ class Sport:
             except IndexError:
                 pass
 
-            (self.teams, self.games) = pickle.load(open(self.persistf, "rb"))
+            self.teams, self.games = pickle.load(open(self.persistf, "rb"))
             w += 1
 
         for t in self.teams:
@@ -791,7 +802,7 @@ class Sport:
         div = "\n" + str("-" * 10) + "\n"
 
         for t in self.teams:
-            teamfile = f"{filepath}\\{self.s}\\{self.year}\\Teams\\{t.codename}.txt"
+            teamfile = self.base / "Teams" / f"{t.codename}.txt"
 
             with open(teamfile, "w") as f:
                 f.write("#{:} {:} ({:})".format(t.rank, t.name, t.wl(1)) + "\n")
@@ -1039,113 +1050,35 @@ class Sport:
         Take the data from the last year available and apply it to the coming year if possible
         """
 
-        y1 = int(self.year)
-        y2 = str(y1 + 1)
+        y2 = str(int(self.year) + 1)
+        dataraw = filepath / self.s / str(y2) / "raw.csv"
 
-        dataraw0 = f"{filepath}\\{self.s}\\{y2}\\raw.csv"
+        self.log(f"Loading {y2} data from {dataraw}")
 
-        games = []
-
-        with open(dataraw0, "r") as f:
+        with open(dataraw, "r") as f:
             reader = csv.reader(f, delimiter=",")
-            for row in reader:
-                if row[3] != "" and row[6] != "":
-                    if "P" in row[7]:
-                        if row[8] != "":
-                            games.append(
-                                Game(
-                                    bool(int(row[1])),
-                                    row[2],
-                                    int(row[3]),
-                                    bool(int(row[4])),
-                                    row[5],
-                                    int(row[6]),
-                                    self,
-                                    row[8],
-                                )
-                            )
-                        else:
-                            games.append(
-                                Game(
-                                    bool(int(row[1])),
-                                    row[2],
-                                    int(row[3]),
-                                    bool(int(row[4])),
-                                    row[5],
-                                    int(row[6]),
-                                    self,
-                                    " ",
-                                )
-                            )
-                    else:
-                        games.append(
-                            Game(
-                                bool(int(row[1])),
-                                row[2],
-                                int(row[3]),
-                                bool(int(row[4])),
-                                row[5],
-                                int(row[6]),
-                                self,
-                                0,
-                            )
-                        )
-                else:
-                    if "P" in row[7]:
-                        if row[8] != "":
-                            games.append(
-                                Game(
-                                    bool(int(row[1])),
-                                    row[2],
-                                    None,
-                                    bool(int(row[4])),
-                                    row[5],
-                                    None,
-                                    self,
-                                    row[8],
-                                )
-                            )
-                        else:
-                            games.append(
-                                Game(
-                                    bool(int(row[1])),
-                                    row[2],
-                                    None,
-                                    bool(int(row[4])),
-                                    row[5],
-                                    None,
-                                    self,
-                                    " ",
-                                )
-                            )
-                    else:
-                        games.append(
-                            Game(
-                                bool(int(row[1])),
-                                row[2],
-                                None,
-                                bool(int(row[4])),
-                                row[5],
-                                None,
-                                self,
-                                0,
-                            )
-                        )
+            for i, row in enumerate(reader, 1):
+                g = self.parseGame(row, i)
+                try:
+                    g.w()
+                except TypeError:
+                    self.log(f"Could not compute w for {g.t1} vs {g.t2}")
+                self.games.append(g)
 
-        for g in games:
-            try:
-                g.w()
-            except TypeError:
-                print(g.t1, g.t2)
+        for t in self.teams:
+            t.updatestats()
+
+        self.log(f"Added {len(self.games)} games for {y2}")
 
     def calculateAccuracy(self):
 
         with open(self.persistf, "rb") as p:
-            (self.teams, self.games) = pickle.load(p)
+            self.teams, self.games = pickle.load(p)
         rawAccuracy: list[tuple[int, int, float, float]] = []
 
         begin = self.findFirstFullWeek()
 
+        currentweek = 0
         for g in self.games:
             if g.p_flag:
                 currentweek = int(g.week)
@@ -1302,9 +1235,9 @@ class Sport:
         btemp = []
 
         if tourney == "nit":
-            playoffraw = f"{filepath}\\{self.s}\\{self.year}\\playoff_nit.csv"
+            playoffraw = self.base / "playoff_nit.csv"
 
-        with open(playoffraw, "r") as f:
+        with open(self.playoffraw, "r") as f:
             reader = csv.reader(f, delimiter=",")
             for row in reader:
                 if row[0] == "0":
@@ -1396,7 +1329,7 @@ class Sport:
 
         print(round, poff, p)
 
-        with open(playoffraw, "w", newline="") as f:
+        with open(self.playoffraw, "w", newline="") as f:
             csvwriter = csv.writer(
                 f, delimiter=",", quotechar="|", quoting=csv.QUOTE_MINIMAL
             )

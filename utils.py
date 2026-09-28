@@ -6,6 +6,7 @@ import warnings
 import numpy as np
 from sklearn.linear_model import LogisticRegression
 import os
+from pathlib import Path
 from scipy.optimize import curve_fit, OptimizeWarning
 import requests
 from bs4 import BeautifulSoup
@@ -14,7 +15,7 @@ from bs4 import BeautifulSoup
 Accuracy = tuple[int, int, float, float]
 
 
-filepath = rf"{os.getcwd()}\data"
+filepath = Path(os.getcwd()) / "data"
 
 
 def processRawData(dataraw: str) -> None:
@@ -228,8 +229,13 @@ def getroots(
 
 
 def fetchData(url: str) -> list[str]:
-
-    response = requests.get(url)
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+        )
+    }
+    response = requests.get(url, headers=headers)
     response.raise_for_status()
     soup = BeautifulSoup(response.text, "html.parser")
     data = soup.find_all("pre")[0].get_text().strip()

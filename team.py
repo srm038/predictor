@@ -170,7 +170,7 @@ class Team:
             try:
                 fitO = np.polyfit(temp_pfh[1], temp_pfh[0], 1)
                 fitD = np.polyfit(temp_pah[1], temp_pah[0], 1)
-            except (ValueError, TypeError):
+            except ValueError, TypeError:
                 self.sport.log(
                     f"{self.codename}, {self.pfh}, {temp_pfh[1]}, {temp_pfh[0]}, {self.pah}, {temp_pah[1]}, {temp_pah[0]}"
                 )
@@ -242,44 +242,28 @@ class Team:
 
         i = 0
         for g in self.sched:
-            try:
-                proj1 = g.proj1
-            except AttributeError:
-                proj1 = ""
-            try:
-                proj2 = g.proj2
-            except AttributeError:
-                proj2 = ""
-            try:
-                spread1 = g.spread1
-            except AttributeError:
-                spread1 = ""
-            try:
-                spread2 = g.spread2
-            except AttributeError:
-                spread2 = ""
-            try:
-                w1 = g.w1
-            except AttributeError:
-                w1 = ""
-            try:
-                w2 = g.w2
-            except AttributeError:
-                w2 = ""
+            proj1 = getattr(g, "proj1", "")
+            proj2 = getattr(g, "proj2", "")
+            spread1 = getattr(g, "spread1", "")
+            spread2 = getattr(g, "spread2", "")
+            w1 = getattr(g, "w1", "")
+            w2 = getattr(g, "w2", "")
+            r1 = getattr(g, "r1", "")
+            r2 = getattr(g, "r2", "")
             if g.t1 == self.codename:
                 if g.p_flag:
                     print(
                         f",{g.t2},,{g.p1},{g.p2},{w1},{spread1},,{g.v1},{self.loess[i]}"
                     )
                 else:
-                    print(f"{g.r2 or ""},{g.t2},,,{proj1},{proj2},{w1},{spread1},,,,")
+                    print(f"{r2 or ""},{g.t2},,,{proj1},{proj2},{w1},{spread1},,,,")
             else:
                 if g.p_flag:
                     print(
                         f",{g.t1},,{g.p2},{g.p1},{w2},{spread2},,{g.v2},{self.loess[i]}"
                     )
                 else:
-                    print(f"{g.r1 or ""},{g.t1},,,{proj2},{proj1},{w2},{spread2},,,,")
+                    print(f"{r1 or ""},{g.t1},,,{proj2},{proj1},{w2},{spread2},,,,")
             i += 1
 
     def smoothed(self):

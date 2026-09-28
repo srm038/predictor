@@ -43,9 +43,9 @@ class Game:
         self.spread1 = 0
         self.spread2 = 0
 
-        self.r1: int | Literal[""]
-        self.r2: int | Literal[""]
-        self.badness: float | Literal[""]
+        self.r1: int | Literal[""] = ""
+        self.r2: int | Literal[""] = ""
+        self.badness: float | Literal[""] = ""
 
         self.pahaa: float
         self.pfhaa: float
@@ -75,7 +75,7 @@ class Game:
             if (
                 self.sport.s == "fcs"
                 and self.t1
-                in open(f"{filepath}\\fbs\\{self.sport.year}\\teams.csv").read()
+                in open(filepath / "fbs" / str(self.sport.year) / "teams.csv").read()
             ):
                 self.w1 = 1
                 self.w2 = 0
@@ -89,7 +89,7 @@ class Game:
             if (
                 self.sport.s == "fcs"
                 and self.t2
-                in open(f"{filepath}\\fbs\\{self.sport.year}\\teams.csv").read()
+                in open(filepath / "fbs" / str(self.sport.year) / "teams.csv").read()
             ):
                 self.w1 = 0
                 self.w2 = 1
@@ -150,7 +150,7 @@ class Game:
                     self.pfoaa = (tpfh2 - (self.p2 or 0)) / (n2 - 1)
                     self.paoaa = (tpah2 - (self.p1 or 0)) / (n2 - 1)
 
-                (ah, bh, ch) = getcoeff(
+                ah, bh, ch = getcoeff(
                     self.paoaa * (mo1 * self.paoaa + bo1 + mno1),
                     abs(mno1),
                     self.paoaa * (mo1 * self.paoaa + bo1),
@@ -159,7 +159,7 @@ class Game:
                     abs(mxo1),
                 )
 
-                (dh, eh, fh) = getcoeff(
+                dh, eh, fh = getcoeff(
                     self.pfhaa * (md2 * self.pfhaa + bd2 + mnd2),
                     abs(mnd2),
                     self.pfhaa * (md2 * self.pfhaa + bd2),
@@ -168,11 +168,11 @@ class Game:
                     abs(mxd2),
                 )
 
-                (self.phl, self.phh) = getroots(ah, bh, ch, dh, eh, fh)
+                self.phl, self.phh = getroots(ah, bh, ch, dh, eh, fh)
                 if self.phh == self.phl:
                     self.phh += 1
 
-                (aa, ba, ca) = getcoeff(
+                aa, ba, ca = getcoeff(
                     self.pahaa * (mo2 * self.pahaa + bo2 + mno2),
                     abs(mno2),
                     self.pahaa * (mo2 * self.pahaa + bo2),
@@ -181,7 +181,7 @@ class Game:
                     abs(mxo2),
                 )
 
-                (da, ea, fa) = getcoeff(
+                da, ea, fa = getcoeff(
                     self.pfoaa * (md1 * self.pfoaa + bd1 + mnd1),
                     abs(mnd1),
                     self.pfoaa * (md1 * self.pfoaa + bd1),
@@ -190,7 +190,7 @@ class Game:
                     abs(mxd1),
                 )
 
-                (self.pal, self.pah) = getroots(aa, ba, ca, da, ea, fa)
+                self.pal, self.pah = getroots(aa, ba, ca, da, ea, fa)
                 if self.pah == self.pal:
                     self.pah += 1
 
