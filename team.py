@@ -12,6 +12,12 @@ import numpy as np
 
 from utils import avg
 
+# Smallest residual spread (mnd/mxd/mno/mxo) the Gaussian fit is allowed to see.
+# A zero width collapses getcoeff and yields a junk (0, 3) spread. Across nfl/2025
+# and fbs/2025 (672 measured values) the smallest legitimate value is 0.0793, so
+# 0.05 sits below anything real and only displaces degenerate early-season teams.
+MIN_RESIDUAL_WIDTH = 0.05
+
 if TYPE_CHECKING:
     from sport import Sport
 
@@ -202,25 +208,32 @@ class Team:
             elif e > 0:
                 mxd.append(e)
 
-        for i in [mnd, mxd, mno, mxo]:
-            if len(i) == 0:
-                if i == mnd:
-                    mnd = [self.bd - min(temp_pah[0])]
-                    self.sport.log(f"{self.name} temp_pah", temp_pah)
-                elif i == mxd:
-                    mxd = [self.bd + max(temp_pah[0])]
-                    self.sport.log(f"{self.name} temp_pah", temp_pah)
-                elif i == mno:
-                    mno = [self.bo - min(temp_pfh[0])]
-                    self.sport.log(f"{self.name} temp_pfh", temp_pfh)
-                elif i == mxo:
-                    mxo = [self.bo + max(temp_pfh[0])]
-                    self.sport.log(f"{self.name} temp_pfh", temp_pfh)
+        if len(mnd) == 0:
+            mnd = [self.bd - min(temp_pah[0])]
+            self.sport.log(f"{self.name} temp_pah", temp_pah)
+        if len(mxd) == 0:
+            mxd = [self.bd + max(temp_pah[0])]
+            self.sport.log(f"{self.name} temp_pah", temp_pah)
+        if len(mno) == 0:
+            mno = [self.bo - min(temp_pfh[0])]
+            self.sport.log(f"{self.name} temp_pfh", temp_pfh)
+        if len(mxo) == 0:
+            mxo = [self.bo + max(temp_pfh[0])]
+            self.sport.log(f"{self.name} temp_pfh", temp_pfh)
 
         self.mnd = sign(avg(mnd), -1)
         self.mxd = sign(avg(mxd), 1)
         self.mno = sign(avg(mno), -1)
         self.mxo = sign(avg(mxo), 1)
+
+        if self.mnd > -MIN_RESIDUAL_WIDTH:
+            self.mnd = -MIN_RESIDUAL_WIDTH
+        if self.mxd < MIN_RESIDUAL_WIDTH:
+            self.mxd = MIN_RESIDUAL_WIDTH
+        if self.mno > -MIN_RESIDUAL_WIDTH:
+            self.mno = -MIN_RESIDUAL_WIDTH
+        if self.mxo < MIN_RESIDUAL_WIDTH:
+            self.mxo = MIN_RESIDUAL_WIDTH
 
         if self.mnd < -1:
             self.mnd = -0.9

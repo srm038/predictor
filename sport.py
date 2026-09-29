@@ -96,13 +96,19 @@ class Sport:
 
     def loadGames(self):
         """Load games from dataraw file."""
+        known_weeks = {
+            g.id: g.week for g in self.games if getattr(g, "id", None) is not None
+        }
         self.games = Games()
         open(self.gamesfile, "w").close()
         with open(self.dataraw, "r") as f:
             reader = csv.reader(f, delimiter=",")
             i = 1
             for row in reader:
-                self.games.append(self.parseGame(row, i))
+                g = self.parseGame(row, i)
+                if g.id in known_weeks:
+                    g.week = known_weeks[g.id]
+                self.games.append(g)
                 i += 1
             del i
 
@@ -130,12 +136,35 @@ class Sport:
         """Write log event to this sport's logfile (wrapper around utils.log)."""
         log(self.logfile, *text)
 
+    def minGames(self) -> int:
+        """Minimum games a team needs before it is eligible to be ranked."""
+        return 50 if self.s == "iru" else 3
+
+    def dropIneligibleTeams(self) -> None:
+        """Remove teams below minGames, recording them in NR.
+
+        Shared by loadSport and rankteams so both entry points produce the same
+        team set. rankteams reloads teams from disk, so filtering only in
+        loadSport left dropped teams ranked anyway. Already-recorded teams are
+        not appended twice.
+        """
+        floor = self.minGames()
+        kept = Teams()
+        for t in self.teams:
+            if t.n < floor:
+                if (t.name, t.n) not in self.NR:
+                    self.NR.append((t.name, t.n))
+            else:
+                kept.append(t)
+        self.teams = kept
+
     def rankteams(self):
 
         self.loadGames()
         self.loadTeams()
         for t in self.teams:
             t.updatestats()
+        self.dropIneligibleTeams()
         for t in self.teams:
             t.updatemetrics()
 
@@ -289,7 +318,7 @@ class Sport:
                     f.write(",".join(["", t.codename, "\n"]))
         for t in self.NR:
             with open(self.rankingraw, "a") as f:
-                f.write(",".join(["", str(t), "\n"]))
+                f.write(f"NR\t{t[0]}\t{t[1]}\n")
 
         with open(self.persistf, "wb") as p:
             pickle.dump((self.teams, self.games), p)
@@ -1482,7 +1511,7 @@ class Sport:
             if self.teams[g.t1] and self.teams[g.t2]:
                 t1 = self.teams.index(g.t1)
                 t2 = self.teams.index(g.t2)
-                if not t1 or not t2:
+                if t1 is None or t2 is None:
                     continue
                 tT[t1] = (tT[t1][0], tT[t1][1] + 1)
                 tT[t2] = (tT[t2][0], tT[t2][1] + 1)

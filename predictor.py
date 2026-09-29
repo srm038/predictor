@@ -140,14 +140,7 @@ def loadSport(
 
     for t in sport.teams:
         t.updatestats()
-    for t in sport.teams:
-        if sport.s == "iru":
-            if t.n < 50:
-                sport.teams.remove(t)
-                sport.NR.append((t.name, t.n))
-        elif t.n < 3:
-            sport.teams.remove(t)
-            sport.NR.append((t.name, t.n))
+    sport.dropIneligibleTeams()
     for t in sport.teams:
         t.updatemetrics()
     else:

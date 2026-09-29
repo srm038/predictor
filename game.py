@@ -10,6 +10,8 @@ from utils import avg, gaussian, getroots, platt_scale, filepath, getcoeff
 if TYPE_CHECKING:
     from sport import Sport
 
+MAX_SCORE_RANGE = 200
+
 
 class Game:
     def __init__(
@@ -203,9 +205,9 @@ class Game:
         s = 0
         total_weight = 0
 
-        for i in range(self.phh - self.phl):
+        for i in range(min(self.phh - self.phl, MAX_SCORE_RANGE)):
             h = self.phl + i
-            for j in range(self.pah - self.pal):
+            for j in range(min(self.pah - self.pal, MAX_SCORE_RANGE)):
                 a_score = self.pal + j
                 weight = gaussian(h, ah, bh, ch) * gaussian(a_score, aa, ba, ca)
                 total_weight += weight

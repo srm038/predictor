@@ -14,6 +14,8 @@ from bs4 import BeautifulSoup
 
 Accuracy = tuple[int, int, float, float]
 
+MAX_ROOT = 200
+
 
 filepath = Path(os.getcwd()) / "data"
 
@@ -138,7 +140,7 @@ def platt_scale(f: float, a: float, b: float) -> float:
 def platt_scaling(accuracies: list[Accuracy]) -> tuple[float, float]:
     x = np.array([np.clip(i[2], 0.01, 0.99) for i in accuracies]).reshape(-1, 1)
     y = np.array([i[1] for i in accuracies]).reshape(-1, 1).ravel()
-    platt_scaler = LogisticRegression(penalty="l2", C=1000.0, solver="liblinear")
+    platt_scaler = LogisticRegression(C=1000.0, solver="liblinear")
     platt_scaler.fit(x, y)
     A = platt_scaler.coef_[0][0]
     B = platt_scaler.intercept_[0]
@@ -175,57 +177,72 @@ def getroots(
 ) -> tuple[int, int]:
     """Get the roots of the point spread"""
 
+    if not all(math.isfinite(x) for x in (a, b, c, d, e, f)) or not (a and d and c and f):
+        return 0, 3
+
     m = (e * c**2 + b * f**2) / (c**2 + f**2)
     m = a * d * np.exp(-(((m - b) / c) ** 2) - ((m - e) / f) ** 2)
 
     if m == 0:
         m = a * d
 
-    try:
-        r1 = np.floor(
-            (
-                2 * b * f * f
-                + 2 * c * c * e
-                - c
-                * f
-                * np.sqrt(
-                    8 * b * e
-                    - 4 * e * e
-                    - 4 * c * c * math.log(m / a / d)
-                    - 4 * f * f * math.log(m / a / d)
-                    - 4 * b * b
-                    + 4 * c * c * math.log(200)
-                    + 4 * f * f * math.log(200)
+    with np.errstate(invalid="ignore"):
+        try:
+            r1 = np.floor(
+                (
+                    2 * b * f * f
+                    + 2 * c * c * e
+                    - c
+                    * f
+                    * np.sqrt(
+                        8 * b * e
+                        - 4 * e * e
+                        - 4 * c * c * math.log(m / a / d)
+                        - 4 * f * f * math.log(m / a / d)
+                        - 4 * b * b
+                        + 4 * c * c * math.log(200)
+                        + 4 * f * f * math.log(200)
+                    )
                 )
+                / (2 * (c * c + f * f))
             )
-            / (2 * (c * c + f * f))
-        )
-    except ValueError:
-        r1 = np.floor((2 * b * f * f + 2 * c * c * e - c * f) / (2 * (c * c + f * f)))
+        except ValueError:
+            r1 = np.floor(
+                (2 * b * f * f + 2 * c * c * e - c * f) / (2 * (c * c + f * f))
+            )
 
-    try:
-        r2 = np.ceil(
-            (
-                2 * b * f * f
-                + 2 * c * c * e
-                + c
-                * f
-                * np.sqrt(
-                    8 * b * e
-                    - 4 * e * e
-                    - 4 * c * c * math.log(m / a / d)
-                    - 4 * f * f * math.log(m / a / d)
-                    - 4 * b * b
-                    + 4 * c * c * math.log(200)
-                    + 4 * f * f * math.log(200)
+        try:
+            r2 = np.ceil(
+                (
+                    2 * b * f * f
+                    + 2 * c * c * e
+                    + c
+                    * f
+                    * np.sqrt(
+                        8 * b * e
+                        - 4 * e * e
+                        - 4 * c * c * math.log(m / a / d)
+                        - 4 * f * f * math.log(m / a / d)
+                        - 4 * b * b
+                        + 4 * c * c * math.log(200)
+                        + 4 * f * f * math.log(200)
+                    )
                 )
+                / (2 * (c * c + f * f))
             )
-            / (2 * (c * c + f * f))
-        )
-    except ValueError:
-        r2 = np.ceil((2 * b * f * f + 2 * c * c * e + c * f) / (2 * (c * c + f * f)))
+        except ValueError:
+            r2 = np.ceil(
+                (2 * b * f * f + 2 * c * c * e + c * f) / (2 * (c * c + f * f))
+            )
 
-    return max(0, r1.astype(int)), max(3, r2.astype(int))
+    if not (math.isfinite(r1) and math.isfinite(r2)):
+        return 0, 3
+
+    lo, hi = max(0, int(r1)), max(3, int(r2))
+    if lo > MAX_ROOT or hi > MAX_ROOT:
+        return 0, 3
+
+    return lo, hi
 
 
 def fetchData(url: str) -> list[str]:
