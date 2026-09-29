@@ -119,8 +119,10 @@ def loadSport(
     else:
         raise ValueError(f"Unsupported sport: {sportCode}")
 
-    sport.log("\n---\n")
-    sport.log(datetime.now().strftime("%m-%d-%y %H:%M:%S"))
+    _started = datetime.now()
+    sport.log("=" * 72)
+    sport.log("RUN START sport=%s year=%s", sport.s, year)
+    sport.log("=" * 72)
 
     sport.log("Loading data and recalculating")
 
@@ -188,7 +190,27 @@ def loadSport(
     sport.calculatePlatt()
 
     sport.rankteams()
-    for n in sport.NR:
-        sport.log("Not ranked: ", n)
+    for name, played in sport.NR:
+        sport.log(f"Not ranked: {name} ({played} games, need {sport.minGames()})")
+
+    elapsed = (datetime.now() - _started).total_seconds()
+    acc = f"{sport.accuracy:0.4f}" if sport.rawAccuracy else "n/a"
+    platt = (
+        f"({sport.platt[0]:0.4f}, {sport.platt[1]:0.4f})"
+        if sport.platt != (0, 0)
+        else "inactive"
+    )
+    sport.log(
+        "Summary games=%s teams_ranked=%s teams_not_ranked=%s week=%s"
+        " accuracy=%s platt=%s",
+        len(sport.games),
+        len(sport.teams),
+        len(sport.NR),
+        sport.currentweek,
+        acc,
+        platt,
+    )
+    sport.log("RUN COMPLETE (%.1fs)", elapsed)
+    sport.log("=" * 72)
 
     return sport

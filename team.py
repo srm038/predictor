@@ -168,7 +168,9 @@ class Team:
             or len(temp_pah[1]) == 0
             or len(temp_pah[2]) == 0
         ):
-            self.sport.log(self.name, " has not played any division games this season")
+            self.sport.log(
+                "%s has not played any division games this season", self.name
+            )
             return
 
         with warnings.catch_warnings():
@@ -210,16 +212,36 @@ class Team:
 
         if len(mnd) == 0:
             mnd = [self.bd - min(temp_pah[0])]
-            self.sport.log(f"{self.name} temp_pah", temp_pah)
+            self.sport.logger.debug(
+                "%s n=%s no negative pts-allowed residual; mnd fallback %.4f",
+                self.codename,
+                self.n,
+                mnd[0],
+            )
         if len(mxd) == 0:
             mxd = [self.bd + max(temp_pah[0])]
-            self.sport.log(f"{self.name} temp_pah", temp_pah)
+            self.sport.logger.debug(
+                "%s n=%s no positive pts-allowed residual; mxd fallback %.4f",
+                self.codename,
+                self.n,
+                mxd[0],
+            )
         if len(mno) == 0:
             mno = [self.bo - min(temp_pfh[0])]
-            self.sport.log(f"{self.name} temp_pfh", temp_pfh)
+            self.sport.logger.debug(
+                "%s n=%s no negative pts-for-allowed residual; mno fallback %.4f",
+                self.codename,
+                self.n,
+                mno[0],
+            )
         if len(mxo) == 0:
             mxo = [self.bo + max(temp_pfh[0])]
-            self.sport.log(f"{self.name} temp_pfh", temp_pfh)
+            self.sport.logger.debug(
+                "%s n=%s no positive pts-for-allowed residual; mxo fallback %.4f",
+                self.codename,
+                self.n,
+                mxo[0],
+            )
 
         self.mnd = sign(avg(mnd), -1)
         self.mxd = sign(avg(mxd), 1)

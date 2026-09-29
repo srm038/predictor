@@ -1,9 +1,11 @@
 import pickle
 import math
+import logging
+import os
 from pathlib import Path
 from game import Game, Games
 from team import Team, Teams
-from utils import log, avg, brier, platt_scaling, filepath, Accuracy
+from utils import avg, brier, platt_scaling, filepath, Accuracy
 from operator import itemgetter
 import numpy as np
 import csv
@@ -132,9 +134,29 @@ class Sport:
             for t in self.teams:
                 f.write(t.codename + "," + str(t.skins) + "\n")
 
-    def log(self, *text):
-        """Write log event to this sport's logfile (wrapper around utils.log)."""
-        log(self.logfile, *text)
+    @property
+    def logger(self) -> logging.Logger:
+        """Return this season's file logger, configuring it on first use."""
+        logger = logging.getLogger(f"predictor.{self.logfile.resolve()}")
+        if not logger.handlers:
+            handler = logging.FileHandler(
+                self.logfile, mode="a", encoding="utf-8", delay=True
+            )
+            handler.setFormatter(
+                logging.Formatter(
+                    "%(asctime)s  %(levelname)-5s  %(message)s",
+                    datefmt="%m-%d-%y %H:%M:%S",
+                )
+            )
+            logger.addHandler(handler)
+            logger.propagate = False
+            level = os.environ.get("PREDICTOR_LOG_LEVEL", "INFO").upper()
+            logger.setLevel(logging.getLevelNamesMapping().get(level, logging.INFO))
+        return logger
+
+    def log(self, message, *args) -> None:
+        """Write one informational event to this season's log."""
+        self.logger.info(message, *args)
 
     def minGames(self) -> int:
         """Minimum games a team needs before it is eligible to be ranked."""
@@ -1149,14 +1171,12 @@ class Sport:
 
                 try:
                     g.w()
-                except Exception:
-
-                    pass
-
-                try:
                     a = g.w1
-                except Exception:
+                except Exception as e:
                     a = 0.5
+                    self.logger.warning(
+                        "w() failed for %s, scoring as 0.5: %r", g.id, e
+                    )
 
                 m = (orig_p1 or 0) - (orig_p2 or 0)
                 outcome = int((a > 0.5 and m > 0) or (a < 0.5 and m < 0))
@@ -1173,9 +1193,15 @@ class Sport:
             self.games = orig_games
             self.teams = orig_teams
 
-            print(
-                f"{w}, {avg([i[0] for i in rawAccuracy]):0.4f}, {avg([i[3] for i in rawAccuracy]):0.4f}"
+            week_acc = avg([i[0] for i in rawAccuracy])
+            week_mae = avg([i[3] for i in rawAccuracy])
+            model = "calibrated" if self.platt != (0, 0) else "raw"
+            line = (
+                f"through_week={w} model={model} accuracy={week_acc:0.4f}"
+                f" mae={week_mae:0.4f} n={len(rawAccuracy)}"
             )
+            print(line)
+            self.log(line)
 
         open(self.accraw, "w").close()
         with open(self.accraw, "a") as b:
@@ -1196,7 +1222,12 @@ class Sport:
             return
         self.log("Scaling...")
         self.platt = platt_scaling(self.rawAccuracy)
-        print(f"A: {self.platt[0]:0.4f}, B: {self.platt[1]:0.4f}")
+        platt_line = (
+            f"platt A={self.platt[0]:0.4f} B={self.platt[1]:0.4f}"
+            f" fitted_on={len(self.rawAccuracy)}"
+        )
+        print(platt_line)
+        self.log(platt_line)
         for g in self.games:
             g.platt = self.platt
             g.w()

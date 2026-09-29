@@ -102,7 +102,9 @@ class Game:
             self.v2 = self.wvar(self.p2, self.p1, self.w2)
             return
         elif (i1 is None or self.t1 is None) and (i2 is None or self.t2 is None):
-            self.sport.log(self.day, ":", self.t1, "vs", self.t2, "is not a real game")
+            self.sport.log(
+                "%s: %s vs %s is not a real game", self.day, self.t1, self.t2
+            )
 
             try:
                 self.sport.games.remove(self)

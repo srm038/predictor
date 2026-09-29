@@ -11,7 +11,6 @@ from scipy.optimize import curve_fit, OptimizeWarning
 import requests
 from bs4 import BeautifulSoup
 
-
 Accuracy = tuple[int, int, float, float]
 
 MAX_ROOT = 200
@@ -59,22 +58,6 @@ def processRawData(dataraw: str) -> None:
         )
         for i in range(len(edited)):
             csvwriter.writerow([edited[i]])
-
-
-def log(logfile: str, *text) -> None:
-    """
-    write log event to log file
-    """
-    for t in text:
-        if isinstance(t, list):
-            t = ",".join(str(i) for i in t)
-        else:
-            t = str(t)
-
-    text = ",".join(str(t) for t in text)
-
-    with open(logfile, "a") as f:
-        f.write(text + "\n")
 
 
 def avg(x):
@@ -177,7 +160,9 @@ def getroots(
 ) -> tuple[int, int]:
     """Get the roots of the point spread"""
 
-    if not all(math.isfinite(x) for x in (a, b, c, d, e, f)) or not (a and d and c and f):
+    if not all(math.isfinite(x) for x in (a, b, c, d, e, f)) or not (
+        a and d and c and f
+    ):
         return 0, 3
 
     m = (e * c**2 + b * f**2) / (c**2 + f**2)
